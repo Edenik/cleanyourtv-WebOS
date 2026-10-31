@@ -40,6 +40,12 @@ module.exports = {
   HOME_APP: '/usr/palm/applications/com.webos.app.home',
   FULLHOME_APP: '/usr/palm/applications/com.webos.app.fullhome',
   STANDIN: env.CYTV_STANDIN || '/tmp/cleanyourtv-home-standin', // LG's Home program while scripts/home-standin.sh is mounted over it
+  SCREENSAVER_APP: '/usr/palm/applications/com.webos.app.screensaver',
+  SA_STANDIN: env.CYTV_SA_STANDIN || '/tmp/cleanyourtv-screensaver-standin', // LG's screen saver program while scripts/screensaver-standin.sh is mounted over it
+  SA_APP: D + '/screensaver', // the page the setup put there
+  SA_OVERLAY: D + '/screensaver-overlay', // the folder mounted over LG's screen saver app (scripts/stage-screensaver.sh)
+  SA_METHOD: D + '/screensaver-method', // holding "mount": use that way also where the stand-in would do
+  SA_DISABLE: D + '/DISABLE-SCREENSAVER', // present while LG's own screen saver is chosen
   // child processes find the system tools first, as in a login shell on the TV
   ENV: Object.assign({}, env, { PATH: '/usr/bin:/usr/sbin:/bin:/sbin:' + (env.PATH || '') }),
 };
