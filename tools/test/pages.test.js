@@ -5,7 +5,7 @@ const fs = require('fs'),
 const { root, ok, run } = require('./lib');
 
 run(async () => {
-  const pages = ['app', 'manager/app', 'picker/app', 'notify/app', 'helper/addons-bundled/iptv/page'].map(d =>
+  const pages = ['app', 'manager/app', 'picker/app', 'notify/app', 'screensaver/app', 'helper/addons-bundled/iptv/page'].map(d =>
     path.join(root, d, 'index.html')
   );
   // the cards that bring a page of their own run on the TV too
@@ -90,11 +90,7 @@ run(async () => {
     'the focus ring has its own rounded corners (an outline is a rectangle before Chromium 94), also on tiles that crop their picture'
   );
   const built = require(path.join(root, 'tools', 'build-pages.js'));
-  for (const p of built.PAGES)
-    ok(
-      built.build(p[0]) === fs.readFileSync(path.join(root, p[1]), 'utf8'),
-      p[1] + ' is built from ' + p[0] + ' (run: node tools/build-pages.js)'
-    );
+  for (const p of built.PAGES) ok(built.fresh(p), p[1] + ' is built from ' + p[0] + ' (run: node tools/build-pages.js)');
   // a long device name (HDMI-CEC) is the second line of a chip in the Inputs picker: the line could not shrink, so it was painted outside the
   // card, over the next ones (issue 19). It wraps onto a second line now, ends in an ellipsis there when that is not enough, and the card
   // reserves the two lines so every card's icon and port sit at the same height.
