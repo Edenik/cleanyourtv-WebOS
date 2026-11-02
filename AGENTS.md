@@ -26,6 +26,7 @@ disk, and a reboot without the boot scripts brings LG's Home back.
 | Live TV: playlist, guide, favourites | the bundled add-on iptv: `helper/addons-bundled/iptv/service.js` (service), `helper/addons-bundled/iptv/src/` (the player page, built into `page/index.html`); `app/src/js/live.js` only turns the book to it |
 | Add-ons (loader, page serving, catalog install, the launcher's pages (the book: `PAGER`) and the manager's Add-ons screen) | `helper/addons.js`, `helper/addons-bundled/`, `addons/` (catalog), `app/src/js/addons.js`, `docs/development/addons.md` |
 | An app that opens on an Android box over ADB (input switch, ADB start) | the bundled add-on androidbox: `helper/addons-bundled/androidbox/service.js`, `adbclient.js` (the ADB protocol), `page.js` (phone page); the hook in `/api/launch` in `helper/apps.js`, `docs/android-box.md` |
+| The Spotify now playing card: sign-in, tokens, polling, cover | `helper/nowplaying.js`, `helper/nowplayingpage.js` (phone page), `helper/spotifyconnect.js` (speakers of the network: mDNS, wake), its routes in `helper/cards.js`, the manager screen in `manager/src/js/screens.js`, the card in `app/src/js/cards.js`, `docs/launcher.md#spotify-now-playing` |
 | Picture notifications | `notify/app/`, `helper/notify.js`, `helper/notifyapi.js` |
 | Voice (Moonshine, OpenRouter, Home Assistant) | `helper/voice.js` (microphone, recogniser), `helper/answers.js` (Assist, OpenRouter, your server), `voice/` |
 | Themes | `helper/themeschema.js` (the schema), `helper/theme.js` (downloads), `themes/` (read from GitHub), `docs/themes.md` |
@@ -103,5 +104,6 @@ sh tools/perf-tv.sh <tv-ip>        # read-only timings from a TV: launcher, Inpu
 - Settings were lost when two parts read and rewrote `config.json` around each other (issues 6, 7): use `config.update`, which logs
   every change of an option or key with its source.
 - A per-TV rule written in a module or a script drifts from the others: put it in `helper/tvprofile.js`.
+- Two parts claiming one LAN port is a race that no test of either part can see: the second `listen` fails with `EADDRINUSE` and which one breaks depends on the start order (the App icons add-on and the Spotify page were both 8794). `tools/test/ports.test.js` reads every fixed port out of `helper/` (add-ons included) and fails on a duplicate and on a port `docs/security.md` does not list: take a free number there, and add its row.
 - Edit the pages in `app/src`, `manager/src` and `helper/addons-bundled/iptv/src`, then `node tools/build-pages.js`; the built files are what the TV loads.
 - Themes are data; a theme must never contain CSS or script. The schema in `helper/themeschema.js` is the only source of what a theme can set.

@@ -16,6 +16,11 @@ local network on request, and an optional notification endpoint is off by defaul
 | 8793 | Android box page | Ten minutes while its QR screen is open in the manager app: a 6-digit code shown on the TV; see [Android box](android-box.md) |
 | 8792 | Cards page | The same, for the options of the cards on Home; see [Cards](launcher.md#cards) |
 | 8794 | App icons page | The same, for choosing a picture for an app; see [Your own icon](launcher.md#your-own-icon) |
+| 8795 | Spotify now playing page | The same, to connect Spotify; see [Spotify now playing](launcher.md#spotify-now-playing) |
+
+Every page takes a port of its own, and each one is listed here. `tools/test/ports.test.js` reads the numbers out of the code and
+fails on a duplicate — two pages that claim one port are not a merge conflict, they are a race: the second `listen` fails and which
+page breaks depends on the order things started in — and on a port this table does not list.
 
 What the setup changes on the TV is listed in [What it changes on the TV](tv-changes.md).
 
@@ -50,6 +55,21 @@ nothing else. Searching a place on the phone page sends the name you type to `ge
 They use the Home Assistant address and token set under **More** > **Home Assistant**, the same ones Voice uses; nothing else is stored. The service reads the states with one
 request every 20 seconds at most, switches only lights, switches, fans, input booleans and automations (and runs scenes and scripts)
 when you press OK on a card, and passes a camera's picture to the launcher. Locks, alarms and covers are never switched.
+
+## Spotify now playing
+
+Waking a speaker (the output button, only when you choose a speaker that Spotify does not list): the service asks the local network with mDNS for Spotify Connect devices (UDP 5353, multicast) and, for the one you choose, sends it your account's access token over plain HTTP on the local network, encrypted for that device with a Diffie-Hellman key exchange (as the Spotify apps do). Only private addresses are asked, and the device that answers must report the id that was listed. Any device of your network can answer the discovery, though, and calls itself what it likes: the token goes to the one you choose, so choose a device that you recognise. The token is valid for an hour and you can revoke the app's access at spotify.com/account/apps.
+
+Optional, and only with a Spotify now playing card. You bring your own Spotify app: the service uses its **Client ID** (not a secret) and
+the sign-in code flow with PKCE, so no client secret is ever needed or stored. The sign-in happens on its own phone page (port
+8795, opened from the manager app, ten minutes to an hour, plain HTTP like the other phone pages: the address you paste back and the Client ID are visible on
+your Wi-Fi while you type them). The service then asks `accounts.spotify.com` for the tokens and `api.spotify.com` for what plays,
+over HTTPS, and fetches the cover from `*.scdn.co`. The scopes are `user-read-currently-playing` and `user-read-playback-state`
+(what plays) and `user-modify-playback-state` (the card's buttons: play, pause, next, previous, and the seek that puts a song back where it was when the cover opens the Spotify app; the output button lists the
+devices of the account and moves the music to the one you choose; and the permission **streaming**, used only to wake a speaker of your network that Spotify does not list (see below); nothing else is changed, no playlist, no library, no volume). The service sends these only when you press a button or the cover on the card. The access token (valid an hour) and the refresh token (about six months) are
+kept in `config.json` under `spotify`, readable by root only; they are never written to the log, never returned by the service
+(the launcher's settings leave `spotify` out) and `tools/diagnose.sh` hides them and the Client ID. **Disconnect Spotify** deletes them;
+you can also remove the app's access at spotify.com/account/apps.
 
 ## Voice
 
