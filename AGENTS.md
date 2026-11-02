@@ -26,6 +26,7 @@ disk, and a reboot without the boot scripts brings LG's Home back.
 | Live TV: playlist, guide, favourites | the bundled add-on iptv: `helper/addons-bundled/iptv/service.js` (service), `helper/addons-bundled/iptv/src/` (the player page, built into `page/index.html`); `app/src/js/live.js` only turns the book to it |
 | Add-ons (loader, page serving, catalog install, the launcher's pages (the book: `PAGER`) and the manager's Add-ons screen) | `helper/addons.js`, `helper/addons-bundled/`, `addons/` (catalog), `app/src/js/addons.js`, `docs/development/addons.md` |
 | An app that opens on an Android box over ADB (input switch, ADB start) | the bundled add-on androidbox: `helper/addons-bundled/androidbox/service.js`, `adbclient.js` (the ADB protocol), `page.js` (phone page); the hook in `/api/launch` in `helper/apps.js`, `docs/android-box.md` |
+| The screen saver (our page over LG's) | `scripts/20-cleanyourtv-screensaver`, `scripts/screensaver-standin.sh`, `scripts/stage-screensaver.sh`, `helper/screensaver.js`, `screensaver/app/`, `docs/screensaver.md` |
 | Picture notifications | `notify/app/`, `helper/notify.js`, `helper/notifyapi.js` |
 | Voice (Moonshine, OpenRouter, Home Assistant) | `helper/voice.js` (microphone, recogniser), `helper/answers.js` (Assist, OpenRouter, your server), `voice/` |
 | Themes | `helper/themeschema.js` (the schema), `helper/theme.js` (downloads), `themes/` (read from GitHub), `docs/themes.md` |
@@ -105,3 +106,6 @@ sh tools/perf-tv.sh <tv-ip>        # read-only timings from a TV: launcher, Inpu
 - A per-TV rule written in a module or a script drifts from the others: put it in `helper/tvprofile.js`.
 - Edit the pages in `app/src`, `manager/src` and `helper/addons-bundled/iptv/src`, then `node tools/build-pages.js`; the built files are what the TV loads.
 - Themes are data; a theme must never contain CSS or script. The schema in `helper/themeschema.js` is the only source of what a theme can set.
+- A package built on Windows: `os.path.relpath` gives `\` in archive names and a CRLF checkout gives `shift\r: not found` on the TV
+  (both broke the screen saver install). `ipk/build.py` writes `/` and normalises shell scripts to LF, and refuses a backslash.
+- `cp` without `-r` skips `screensaver/app` ("omitting directory"): `bootstrap.sh` copies that payload with `cp -r`.
