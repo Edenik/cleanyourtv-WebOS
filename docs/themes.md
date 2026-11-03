@@ -161,6 +161,7 @@ when the focus moves down into it (Back or Up closes it); a dock at the top leav
 | `clock.show` | `true` or `false` | `true` | Show the clock. |
 | `clock.date` | `true` or `false` | `true` | Show the date beside or under the time. |
 | `clock.greeting` | `true` or `false` | `false` | Show a greeting (Good morning / afternoon / evening, in the language) in capitals above the time. Needs the stacked layout. |
+| `clock.under` | `true` or `false` | `true` | Allow the card the user puts under the clock (Customise > Weather, or the Cards screen in the manager). |
 | `clock.layout` | `inline`, `stack` | `inline` | `inline`: the date beside the time; `stack`: under it. |
 | `clock.anchor` | `top`, `bottom` | `top` | Which screen edge `clock.y` counts from. |
 | `clock.align` | `left`, `center`, `right` | `left` | Which side `clock.x` counts from; `center` centres it. |
@@ -302,8 +303,9 @@ where the card is, under a dark tint. Without scenes it is a plain translucent p
 ### Slots for cards
 
 A theme can mark places where **cards** go: small widgets the user chooses in **Customise** > **Cards** (greeting, weather,
-text and Home Assistant cards). A theme without slots shows no cards and has no Cards row in Customise. Slots are a
-list in `theme.json`:
+text and Home Assistant cards). A theme without slots has no places of its own, but every theme still has **Under the clock**
+(`clock.under` turns it off; `under-clock` is its id and not available as a slot id), so the Cards row in Customise is there whether
+or not a theme declares slots. Slots are a list in `theme.json`:
 
 ```json
 "slots": [

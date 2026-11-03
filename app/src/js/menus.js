@@ -865,6 +865,12 @@ function customizeMenu() {
                 },
               }
             : null,
+          {
+            label: t('Weather'),
+            sub: (cfg.cards || {})['under-clock'] && cfg.cards['under-clock'].type === 'weather' ? t('On') : t('Off'),
+            stay: true,
+            fn: wxMenu,
+          },
         ].filter(function (it) {
           return it;
         });
@@ -1235,4 +1241,141 @@ function hiddenMenu() {
       })
     );
   });
+}
+
+function wxMenu() {
+  openBuilt(t('Weather'), function () {
+    var c = (cfg.cards || {})['under-clock'] || {},
+      has = c.lat !== undefined && c.lon !== undefined,
+      on = c.type === 'weather',
+      /* the theme decides whether the place is drawn (a glass clock leaves it out, and so do clock.under and a hidden clock): say so,
+         because the card is then on Home in the settings only (home.css #under) */
+      box = $('under'),
+      hidden = !!box && getComputedStyle(box).display === 'none';
+    return [
+      hidden ? { note: t('This theme hides this place.') } : null,
+      {
+        label: t('Show on Home'),
+        sub: on ? t('On') : t('Off'),
+        stay: true,
+        fn: function () {
+          if (!on && !has) return toast(t('Choose a city first.'), true);
+          wxSet(function (o) {
+            o.type = on ? 'none' : 'weather';
+          });
+        },
+      },
+      {
+        label: t('City'),
+        sub: c.place || t('Not set'),
+        stay: true,
+        fn: wxSearch,
+      },
+      {
+        label: t('Temperature'),
+        sub: c.unit === 'f' ? '°F' : '°C',
+        stay: true,
+        fn: function () {
+          wxSet(function (o) {
+            if (o.unit === 'f') delete o.unit;
+            else o.unit = 'f';
+          });
+        },
+      },
+      {
+        label: t('Forecast'),
+        sub: c.show === 'days' ? t('Now and the next days') : t('Now'),
+        stay: true,
+        fn: function () {
+          wxSet(function (o) {
+            if (o.show === 'days') delete o.show;
+            else o.show = 'days';
+          });
+        },
+      },
+      { sep: true },
+      { note: t('Weather and city search by Open-Meteo. Only the city you type and its coordinates are sent. No account.') },
+    ].filter(function (it) {
+      return it; /* the note above only where the theme hides the place */
+    });
+  });
+}
+
+/* ---- Customise > Weather: the under-clock card, its place typed on the TV (input.js sends Enter to wxFind) ---- */
+/* the card as it is now, or a fresh weather card: the panel only ever touches the under-clock place */
+function wxCard() {
+  var c = (cfg.cards || {})['under-clock'];
+  return c && c.type === 'weather' ? c : { type: 'weather' };
+}
+function wxCopy(o) {
+  var r = {},
+    k;
+  for (k in o) if (Object.prototype.hasOwnProperty.call(o, k)) r[k] = o[k];
+  return r;
+}
+/* change the under-clock card and save it in the service; Home is drawn again at once so the change is seen */
+function wxSet(fn) {
+  var card = wxCopy(wxCard());
+  fn(card);
+  api('/api/cards/card', { slot: 'under-clock', card: card }).then(
+    function (r) {
+      if (r && r.error) return toast(t(r.error), true);
+      cfg.cards = cfg.cards || {};
+      if (card.type === 'none') delete cfg.cards['under-clock'];
+      else cfg.cards['under-clock'] = card;
+      drawCards();
+      /* the panel is built from the settings: build it again, or the rows keep the values it was opened with */
+      refreshMenu();
+    },
+    function () {
+      toast(t('The service did not answer.'), true);
+    }
+  );
+}
+/* the place: an input over the menu, typed with the TV's keyboard; Enter searches, Back leaves the field */
+function wxSearch() {
+  var el = $('wxq');
+  if (!el) return;
+  el.value = wxCard().place || '';
+  el.style.display = 'block';
+  el.focus();
+}
+function wxSearchEnd() {
+  var el = $('wxq');
+  if (!el) return;
+  el.value = '';
+  el.style.display = 'none';
+  el.blur();
+}
+/* Enter in the field: the service's city search, then the places it found as a menu; picking one saves the place and shows it */
+function wxFind(q) {
+  var v = String(q || '').replace(/^\s+|\s+$/g, '');
+  if (v.length < 2) return toast(t('Type at least two letters.'), true);
+  api('/api/cards/places', { q: v }).then(
+    function (r) {
+      var list = (r && r.places) || [];
+      wxSearchEnd();
+      if (!list.length) return toast(t('No city found.'), true);
+      openBuilt(t('City'), function () {
+        return list.map(function (p) {
+          return {
+            label: p.name,
+            sub: p.area || '',
+            fn: function () {
+              wxSet(function (c) {
+                c.type = 'weather';
+                c.place = p.name;
+                c.lat = p.lat;
+                c.lon = p.lon;
+              });
+            },
+          };
+        });
+      });
+    },
+    function () {
+      wxSearchEnd();
+      toast(t('City search is not available now.'), true);
+    }
+  );
 }

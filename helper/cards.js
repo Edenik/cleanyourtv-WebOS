@@ -8,6 +8,8 @@ const http = require('http');
 const web = require('./web'),
   i18n = require('./i18n'),
   nc = require('./netcompat');
+// a place every theme has: under the clock, for any card (the launcher draws it there, app/src/js/cards.js); empty until a card is chosen
+const UNDER_SLOT = { id: 'under-clock', card: 'none' };
 const SLOT_ID = /^[a-z][a-z0-9-]{0,19}$/,
   TYPE = /^[a-z][a-z0-9-]{0,30}$/,
   MAX_SLOTS = 12;
@@ -34,6 +36,30 @@ function options(o, depth) {
   }
   return out;
 }
+// the weather card's options: the place's name (text, at most 40 characters), its coordinates (both, within range, or neither), the
+// temperature unit ('f' or the default) and whether the days follow ('days' or just now); the rest is dropped
+function weatherCard(card) {
+  const out = { type: card.type };
+  const place =
+    typeof card.place === 'string'
+      ? card.place
+          .split('')
+          .filter(ch => ch.charCodeAt(0) > 31 && ch.charCodeAt(0) !== 127 && ch !== '<' && ch !== '>')
+          .join('')
+          .trim()
+          .slice(0, 40)
+      : '';
+  if (place) out.place = place;
+  const lat = card.lat,
+    lon = card.lon;
+  if (typeof lat === 'number' && typeof lon === 'number' && Math.abs(lat) <= 90 && Math.abs(lon) <= 180) {
+    out.lat = Math.round(lat * 100) / 100;
+    out.lon = Math.round(lon * 100) / 100;
+  }
+  if (card.unit === 'f') out.unit = 'f';
+  if (card.show === 'days') out.show = 'days';
+  return out;
+}
 // the cards as the launcher sent them, or undefined when there is nothing usable
 function sanitize(c) {
   if (!c || typeof c !== 'object' || Array.isArray(c)) return undefined;
@@ -41,7 +67,7 @@ function sanitize(c) {
   for (const id of Object.keys(c).slice(0, MAX_SLOTS)) {
     const card = c[id];
     if (!SLOT_ID.test(id) || !card || typeof card !== 'object' || !TYPE.test(card.type)) continue;
-    out[id] = Object.assign(options(card, 0), { type: card.type });
+    out[id] = card.type === 'weather' ? weatherCard(card) : Object.assign(options(card, 0), { type: card.type });
   }
   return out;
 }
@@ -69,9 +95,9 @@ const TYPES = [
   {
     type: 'weather',
     name: 'Weather',
-    about: 'The weather now at a place you choose on your phone, with the next days if you like.',
+    about: 'The weather now at a city you choose on your phone, with the next days if you like.',
     fields: [
-      { key: 'place', kind: 'place', label: 'Place' },
+      { key: 'place', kind: 'place', label: 'City' },
       {
         key: 'unit',
         kind: 'choice',
@@ -171,7 +197,13 @@ const TYPES = [
   },
 ];
 // the usual slot ids, named as in the launcher
-const SLOT_NAMES = { greeting: 'Above the clock', 'clock-side': 'Beside the clock', side: 'Right column', row: 'Above the dock' };
+const SLOT_NAMES = {
+  greeting: 'Above the clock',
+  'clock-side': 'Beside the clock',
+  side: 'Right column',
+  row: 'Above the dock',
+  'under-clock': 'Under the clock',
+};
 const PAIR_PORT = 8792, // after the Wallpapers page (8791)
   PAIR_MS = 10 * 60 * 1000;
 
@@ -183,12 +215,12 @@ function create(ctx) {
   const slots = () => {
     const th = ctx.feature('theme'),
       r = th && th.resolved();
-    return (r && r.slots) || [];
+    return ((r && r.slots) || []).filter(sl => sl.id !== UNDER_SLOT.id).concat([UNDER_SLOT]);
   };
   // the downloaded cards as card types (x-<id>), their options as the fields of the form on the phone page
   /** @returns {any[]} */
   function packTypes() {
-    const have = packs.installed();
+    const have = packs.all();
     return Object.keys(have).map(id => ({
       type: 'x-' + id,
       name: have[id].name,
@@ -225,6 +257,21 @@ function create(ctx) {
       conf.cards = c;
     });
     return { ok: true };
+  }
+  // the launcher's own Customise > Weather: the under-clock card with the place typed on the TV, its unit and its forecast
+  function setCard(slot, card) {
+    if (!slots().some(sl => sl.id === slot)) return { error: 'this theme has no such place' };
+    if (!card || typeof card !== 'object') return { error: 'no card' };
+    const type = String(card.type || 'none');
+    if (type === 'none') return setType(slot, 'none');
+    if (!(/** @type {any[]} */ (TYPES).concat(packTypes()).some(ty => ty.type === type))) return { error: 'unknown card type' };
+    const one = sanitize({ [slot]: Object.assign({}, card, { type }) });
+    if (!one || !one[slot]) return { error: 'that card has no usable options' };
+    const next = Object.assign({}, config.get().cards || {}, one);
+    config.update('cards (launcher)', conf => {
+      conf.cards = next;
+    });
+    return { ok: true, cards: next };
   }
   function save(cards) {
     const c = sanitize(cards) || {};
@@ -303,6 +350,66 @@ function create(ctx) {
     json({ error: 'not found' }, 404);
   }
 
+  // ---- cards of add-ons (addon.json "cards"): the launcher asks the add-on for the card's data and sends it the card's actions ----
+  const FEED_MAX = 128 * 1024; // a cover as a data: address fits; anything larger is refused
+  // the add-on behind the card in a slot: {opt} (the card's options as the add-on gets them: defaults filled in, a place with its
+  // coordinates) with the card and the add-on's service; {error} when the slot holds no such card
+  function addonCard(slot) {
+    const c = (config.get().cards || {})[slot];
+    const e =
+      c &&
+      typeof c.type === 'string' &&
+      /^x-/.test(c.type) &&
+      ctx
+        .feature('addons')
+        .cardsOf()
+        .filter(x => 'x-' + x.card.id === c.type)[0];
+    if (!e || !e.mod || !e.mod.cards) return { error: 'no such card' };
+    const opt = {};
+    for (const q of e.card.options) {
+      const v = c[q.key];
+      opt[q.key] = v !== undefined && v !== '' ? v : q.kind === 'choice' && !q.default ? q.choices[0][0] : q.default;
+      if (q.kind === 'place') {
+        opt.lat = c.lat;
+        opt.lon = c.lon;
+      }
+    }
+    return { e, opt };
+  }
+  // a call into the add-on that always ends: its answer, {error}, or {error} after 15 seconds
+  /** @param {() => any} fn */
+  function inAddon(fn) {
+    return new Promise(resolve => {
+      const t = setTimeout(() => resolve({ error: 'the add-on did not answer' }), 15000);
+      Promise.resolve()
+        .then(fn)
+        .then(
+          r => {
+            clearTimeout(t);
+            resolve(r && typeof r === 'object' && !Array.isArray(r) ? r : {});
+          },
+          err => {
+            clearTimeout(t);
+            resolve({ error: String((err && err.message) || err).slice(0, 160) });
+          }
+        );
+    });
+  }
+  async function addonFeed(slot) {
+    const a = addonCard(String(slot || ''));
+    if (a.error) return a;
+    if (typeof a.e.mod.cards.feed !== 'function') return {};
+    const r = await inAddon(() => a.e.mod.cards.feed(a.e.card.id, a.opt));
+    return JSON.stringify(r).length > FEED_MAX ? { error: 'the answer is too large' } : r;
+  }
+  async function addonAction(slot, name, arg) {
+    const a = addonCard(String(slot || ''));
+    if (a.error) return a;
+    if (!a.e.card.actions.some(x => x.name === name) || typeof a.e.mod.cards.action !== 'function') return { error: 'no such action' };
+    const v = typeof arg === 'string' ? arg.slice(0, 100) : typeof arg === 'number' && isFinite(arg) ? arg : '';
+    return inAddon(() => a.e.mod.cards.action(a.e.card.id, a.opt, name, v));
+  }
+
   async function handle(req, res, u, body) {
     // a Home Assistant camera's picture for the camera card (GET, so the launcher can use it as an image)
     if (u.indexOf('/card/') === 0) return packs.serve(req, res, u);
@@ -319,7 +426,20 @@ function create(ctx) {
     if (u === '/api/cards/pair') return web.json(res, b.stop ? (stopPair(), {}) : await startPair());
     // the manager's Cards screen: the theme's places with their cards, and a card type picked for one of them
     if (u === '/api/cards/status') return web.json(res, state(i18n.lang(req, config.get().lang)));
+    // a card of an add-on: {slot} -> its data; {slot, name, arg} -> an action of one of its buttons
+    if (u === '/api/cards/feed') return web.json(res, await addonFeed(b.slot));
+    if (u === '/api/cards/action') return web.json(res, await addonAction(b.slot, String(b.name || ''), b.arg));
     if (u === '/api/cards/set') return web.json(res, setType(String(b.slot || ''), String(b.type || '')));
+    // the launcher's Customise > Weather: {slot, card} -> the card with its options (the place typed on the TV) saved
+    if (u === '/api/cards/card') return web.json(res, setCard(String(b.slot || ''), b.card));
+    // the launcher's own city search (Customise > Weather > City, typed with the TV's keyboard): {q} -> {places} like the phone page's
+    if (u === '/api/cards/places') {
+      try {
+        return web.json(res, { places: await weather.search(b.q, i18n.lang(req, config.get().lang)) });
+      } catch (e) {
+        return web.json(res, { error: 'City search is not available now.', places: [] });
+      }
+    }
     // the weather card: {lat, lon, unit} -> the weather there (Open-Meteo, at most every 30 minutes)
     if (u === '/api/cards/weather') return web.json(res, await weather.get(b.lat, b.lon, b.unit));
     // Home Assistant cards: {ids} -> their states (kept 20 s); {id} -> switched (lights, switches, fans, scenes, scripts)
@@ -333,7 +453,7 @@ function create(ctx) {
     web.notFound(res);
   }
   // the files of a page card are under /card/<id>/ (cardcatalog.js)
-  return { name: 'cards', prefix: '/api/cards/', match: packs.match, handle, stop: stopPair, packs: () => packs.installed() };
+  return { name: 'cards', prefix: '/api/cards/', match: packs.match, handle, stop: stopPair, packs: () => packs.all() };
 }
 
 // the phone page: a form per slot (the card type, then its options), and all cards as JSON. Plain script for iOS Safari and Android

@@ -2,7 +2,13 @@
    For each place (above the dock, the right column, ...) the kind of card and what it shows: one or more entities, a camera, and
    where the launcher has the Home Assistant weather card, a weather entity and an outside temperature sensor. The entities come from Home Assistant through the service
    (POST /api/cards/ha/entities); the choice is saved with the launcher's settings (cfg.cards, the same as the phone page writes). */
-var HAM_PLACES = { greeting: 'Above the clock', 'clock-side': 'Beside the clock', side: 'Right column', row: 'Above the dock' };
+var HAM_PLACES = {
+  greeting: 'Above the clock',
+  'clock-side': 'Beside the clock',
+  side: 'Right column',
+  row: 'Above the dock',
+  'under-clock': 'Under the clock',
+};
 /* [type, name, what it is]: the texts are the service's (helper/cards.js), so they are in the translations; a picture of each is at
    /api/cards/preview/<type> */
 var HAM_KINDS = [
@@ -20,6 +26,8 @@ var HAM_KINDS = [
     'Greeting',
     'Good morning, good afternoon or good evening by the time of day, with a name and a second line: the date or the weather.',
   ],
+  /* the weather card of Customise > Weather, offered only for a place that already has it (hamKindsFor): it needs a place, chosen there */
+  ['weather', 'Weather', 'The weather for a place you choose, from Open-Meteo, with a drawer of the next hours and days.'],
 ];
 /* the kinds of entity to choose from for an entity card, in this order */
 var HAM_DOMAINS = [
@@ -46,6 +54,14 @@ function hamKind(type) {
   var pk = /^x-(.+)$/.exec(type);
   if (pk && CARD_PACKS[pk[1]]) return CARD_PACKS[pk[1]].name; /* a downloaded card */
   return type;
+}
+/* the kinds a place can be given: the ones the launcher knows, and the weather card only for a place that already shows it (it is chosen
+   in Customise > Weather, with its place, and picking it again there keeps that place) */
+function hamKindsFor(cur) {
+  return HAM_KINDS.filter(function (k) {
+    if (k[0] === 'weather') return cur === 'weather';
+    return k[0] === 'none' || CARD_TYPES[k[0]];
+  });
 }
 function hamName(id) {
   return hamNames[id] || (HA.by[id] && HA.by[id].name) || id;
@@ -158,7 +174,7 @@ function haMenu() {
       },
       { sep: true },
     ];
-    (TH.slots || []).forEach(function (sl) {
+    cardSlots().forEach(function (sl) {
       items.push({
         label: hamPlace(sl),
         sub: hamSummary(hamCard(sl)),
@@ -168,8 +184,6 @@ function haMenu() {
         },
       });
     });
-    if (!(TH.slots || []).length)
-      items.push({ note: t('This theme has no places for cards. Choose a theme with cards (Lock Screen) in Customise > Theme.') });
     if (hamReady === false)
       items.push(
         { sep: true },
@@ -328,9 +342,7 @@ function hamPlaceMenu(sl) {
    list as in the Theme menu; the cards downloaded from the catalog (manager > Cards > Get more cards) come after the launcher's own. */
 function hamKindMenu(sl) {
   var cur = hamCard(sl).type,
-    kinds = HAM_KINDS.filter(function (k) {
-      return k[0] === 'none' || CARD_TYPES[k[0]];
-    }).map(function (k) {
+    kinds = hamKindsFor(cur).map(function (k) {
       return { type: k[0], name: t(k[1]), about: k[2] ? t(k[2]) : t('Leave this place empty.'), pic: k[0] === 'none' ? '' : k[0] };
     });
   Object.keys(CARD_PACKS).forEach(function (id) {
