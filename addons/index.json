@@ -83,14 +83,14 @@
       "files": {
         "addon.json": "2959fe83f5b026b28ec9e9fff37c821a81b14a852b8ac8372d37a49cf9f05975",
         "devicename.js": "a0ef58074f9c4ef9fd66e7c7a51259b184167304f95e0d36d4bb544db6750d14",
-        "page/index.html": "cf3b6d6e0e1ad01988edae1208c0bf9b0653eb020e8f4d47f1055c5090f26cd5",
+        "page/index.html": "c561eb1bdc99cdd83d3cd24e40ed5fe3410d518514302abdf88641702c5395d7",
         "page.js": "985cedb9ca9b6038eff61f4ac45f0db1a803b0ee6b0adcf99430c9b0dec926ee",
         "remotekeys.js": "2f65affbb6a6ff057947d81a553ee3d2063d293edaed4cdcb4a0019b380ea8d3",
         "service.js": "546b22ab0ad096e8891debd36fd5574430ceae162990b9a5796efc5558826801",
         "src/css/page.css": "ff3788b972b16e8f48c494517988ccfac10b773f8eaae4e6a1aaf95094928a27",
         "src/html/body.html": "339681a4f5f8853686b9ae5ec04994bd10eb698e687cf32478d8911e4d0871fc",
         "src/index.html": "e8ba0b25666cbc8c11f98e44e1aac2518d39f6abc1910e5acf3fec32c74860d8",
-        "src/js/page.js": "715f40f366e534fda824dd9018c7967ef8e7a561f81859c5494d53317405f0dc",
+        "src/js/page.js": "fc0a45bdf0f608e9ca8331d663f270e9fc710c8c6331847325beb26a384c306c",
         "tvname.js": "f2b79e333f234bbf0052164f9273b225a9a1d2360ae22a32c85ff70511328ca6",
         "ws.js": "c2cd76df01a680c1c7baf0b41b4eb11effec4b5eb0d2d555fe1ccc0a8419a210"
       }
