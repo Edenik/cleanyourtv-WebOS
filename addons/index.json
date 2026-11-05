@@ -70,6 +70,32 @@
       }
     },
     {
+      "id": "phoneremote",
+      "name": "Phone remote",
+      "version": "1.0.0",
+      "description": "A phone on your Wi-Fi as the TV's remote: buttons, a touchpad, the keyboard, the apps and Live TV.",
+      "about": "A phone on the same Wi-Fi becomes the TV's remote control. It pairs once with a 6-digit code the TV shows, then its browser page reconnects by itself: the remote's buttons, a touchpad that moves the TV's pointer, a keyboard that types into the field open on the TV, the TV's apps and the channels of your Live TV playlist, and a power button. Each phone can be blocked or removed, and a phone that is not used for a while is removed by itself. The phone remote is off until you switch it on in Add-ons; its page (Add-ons > Phone remote, and a page of the book on Home) pairs a phone and lists the paired ones.",
+      "preview": "preview.jpg",
+      "kind": "service",
+      "permissions": [
+        "luna"
+      ],
+      "files": {
+        "addon.json": "2959fe83f5b026b28ec9e9fff37c821a81b14a852b8ac8372d37a49cf9f05975",
+        "devicename.js": "a0ef58074f9c4ef9fd66e7c7a51259b184167304f95e0d36d4bb544db6750d14",
+        "page/index.html": "e6c4a12e96c3ef06ad55171dcbb3e534fbbde0199861aa1b70c9cb57e15ba0b5",
+        "page.js": "985cedb9ca9b6038eff61f4ac45f0db1a803b0ee6b0adcf99430c9b0dec926ee",
+        "remotekeys.js": "2f65affbb6a6ff057947d81a553ee3d2063d293edaed4cdcb4a0019b380ea8d3",
+        "service.js": "c1b76a0461d1d5eeafc2254c7af0a7b6820165c43d3eb4d53e9c84e8594828b2",
+        "src/css/page.css": "ff3788b972b16e8f48c494517988ccfac10b773f8eaae4e6a1aaf95094928a27",
+        "src/html/body.html": "339681a4f5f8853686b9ae5ec04994bd10eb698e687cf32478d8911e4d0871fc",
+        "src/index.html": "e8ba0b25666cbc8c11f98e44e1aac2518d39f6abc1910e5acf3fec32c74860d8",
+        "src/js/page.js": "d487be5657118cfdc1f14fc26bba78bbd42722b620cf60156f13ebd052faa049",
+        "tvname.js": "f2b79e333f234bbf0052164f9273b225a9a1d2360ae22a32c85ff70511328ca6",
+        "ws.js": "c2cd76df01a680c1c7baf0b41b4eb11effec4b5eb0d2d555fe1ccc0a8419a210"
+      }
+    },
+    {
       "id": "spotify",
       "name": "Spotify now playing",
       "version": "1.1.0",
@@ -121,7 +147,7 @@
       ],
       "files": {
         "addon.json": "c1988ff75d83c81498e7e62183b9634268520721216134cfb71f60957c8c8207",
-        "page/index.html": "4c1afcfbd501ae6cd30c5ca02fb31d440699f2ffd289688e3796baca9c6df93f",
+        "page/index.html": "2cdcf0b71cafa95f4388f5ed0fed117b2a2b8102bd8c38bfc3789c0ed02949da",
         "service.js": "63e99e9fa925c642bf37a337093f45d32ec0a7bd9f522b365018a437d60f6758",
         "src/index.html": "a97da7e3f223e4830404f92b5184cc647777cf4934acd13a960cecddd980e560",
         "tuner.js": "8c22501e09f98da5269c2fd0451f5d769931282d058094324dd8e5e340dfbd40"
