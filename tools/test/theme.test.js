@@ -237,6 +237,12 @@ run(async () => {
   const noSceneRaw = { name: 'NS', effects: { scenes: 'custom' } }; // custom but no scenes array
   const noSceneTheme = themeMod.normalize(noSceneRaw, 'noscene', null, sceneDir);
   ok(noSceneTheme.v['effects.scenes'] === 'off', 'effects.scenes "custom" without a valid scenes array falls back to off');
+  // on the TV the launcher is a file:// page: a path alone does not reach the service, so the scene pictures need API in front,
+  // like the theme's font and wallpaper (theme.js)
+  ok(
+    /customBase = wantCustom \? API \+ '\/api\/theme\/scene\/'/.test(fs.readFileSync(path.join(root, 'app/src/js/scenes.js'), 'utf8')),
+    "custom scenes: the launcher asks the service's address for the pictures, not a path of the page"
+  );
   const cardsShape = req('cards');
   const cs = cardsShape.sanitize({
     greeting: { type: 'greeting', name: 'Salih', x: { deep: { deeper: 1 } } },
@@ -477,6 +483,16 @@ run(async () => {
       bl.strip && bl.strip.y === 14 && bl.strip.size === 0.92 && bl.strip.style === 'pills',
       'Bloom sets the strip lower and a little smaller, to sit under its glass dock'
     );
+    const ls = ts.resolve(
+      ts.normalize(
+        JSON.parse(fs.readFileSync(path.join(tdir, 'lockscreen', 'theme.json'), 'utf8')),
+        'lockscreen',
+        null,
+        path.join(tdir, 'lockscreen')
+      )
+    );
+    const uc = (ls.slots || []).filter(sl => sl.id === 'under-clock')[0];
+    ok(uc && uc.t === '262px' && uc.keep === true, 'Lock Screen has a place for a card under the clock');
     const cl = ts.resolve(ts.normalize(JSON.parse(fs.readFileSync(path.join(tdir, 'classic', 'theme.json'), 'utf8')), 'classic', null));
     ok(cl.strip === undefined, 'Classic writes down the default look, so it adds nothing to its reply');
   }

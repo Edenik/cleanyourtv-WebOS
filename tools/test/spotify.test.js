@@ -38,7 +38,7 @@ run(async () => {
   const said = [];
 
   // ---- the stand-in for accounts.spotify.com and api.spotify.com (and the cover host) ----
-  const seen = { token: [], api: 0, art: 0, auth: [], ctl: [] };
+  const seen = { token: [], api: 0, art: 0, auth: [], ctl: [], xfer: [], devices: [] };
   let ctlAnswer = null; // the answer of the control calls: {status, body}
   let playing = null, // the answer of currently-playing: {status, body, headers}
     tokenAnswer = null; // overrides the answer of the token endpoint
@@ -79,6 +79,15 @@ run(async () => {
         const a = playing || { status: 204 };
         rs.writeHead(a.status, Object.assign({ 'content-type': 'application/json' }, a.headers || {}));
         return rs.end(a.body === undefined ? undefined : JSON.stringify(a.body));
+      }
+      if (rq.url === '/v1/me/player/devices') {
+        rs.writeHead(200, { 'content-type': 'application/json' });
+        return rs.end(JSON.stringify({ devices: seen.devices || [] }));
+      }
+      if (rq.method === 'PUT' && rq.url === '/v1/me/player') {
+        seen.xfer.push(JSON.parse(body || '{}'));
+        rs.writeHead(204);
+        return rs.end();
       }
       if (/^\/v1\/me\/player\/(play|pause|next|previous|seek)([?]|$)/.test(rq.url)) {
         seen.ctl.push({ m: rq.method, p: rq.url, auth: rq.headers.authorization });
@@ -155,6 +164,7 @@ run(async () => {
   const np = NP.create({ settings, fetch: req('fetch'), log: m => said.push(m) });
 
   // ---- the sign-in ----
+  const au0 = r => new (require('url').URL)(r.url).searchParams;
   ok(np.prepare('short', '').error, 'a Client ID that is not 32 hex digits is refused');
   ok(np.prepare(CID, 'http://localhost:8888/callback').error, 'localhost is refused as a redirect address (Spotify does not accept it)');
   ok(np.prepare(CID, 'http://192.168.1.5/cb').error, 'a plain http address on the network is refused');
@@ -163,6 +173,12 @@ run(async () => {
     'https and loopback addresses are accepted'
   );
   ok((await np.finish('http://127.0.0.1:8888/callback?code=x&state=y')).error, 'finishing without a prepared sign-in is refused');
+  ok(
+    !/streaming/.test(au0(np.prepare(CID, '')).get('scope')),
+    'the sign-in does not ask for the streaming permission unless waking speakers is switched on'
+  );
+  ok(/streaming/.test(au0(np.prepare(CID, '', true)).get('scope')), 'with waking switched on it does');
+  ok(!/streaming/.test(au0(np.prepare(CID, '', 'yes')).get('scope')), 'only a true switch counts');
   const prep = np.prepare(CID, '');
   const au = new (require('url').URL)(prep.url);
   const q = k => au.searchParams.get(k);
@@ -370,6 +386,7 @@ run(async () => {
   // ---- the add-on: the card's data, its buttons and the phone page ----
   ctlAnswer = null;
   const nc = req('netcompat');
+  const launched = []; // what the add-on asked the TV to start
   const M = require(path.join(addonDir, 'service.js'));
   const svc = M.create({
     id: 'spotify',
@@ -377,6 +394,10 @@ run(async () => {
     dataDir: path.join(process.env.CYTV_DIR, 'addon-data', 'spotify'),
     log: m => said.push(m),
     fetch: req('fetch'),
+    luna: (uri, payload) => {
+      launched.push({ uri, id: payload.id, p: payload.params });
+      return Promise.resolve({ returnValue: true });
+    },
     util: { lanIp: () => '127.0.0.1', randomInt: nc.randomInt, mkdirp: nc.mkdirp, i18n: req('i18n') },
     env: { lang: () => '', wallpaperSize: () => '4k' },
     settings,
@@ -427,6 +448,107 @@ run(async () => {
   );
   ctlAnswer = null;
 
+  // the cover and the output button
+  ctlAnswer = null;
+  skew += 20000;
+  playing = { status: 200, body: track() };
+  await svc.cards.feed('nowplaying', {});
+  const fd = await svc.cards.feed('nowplaying', {});
+  ok(fd.device === 'Living room TV' && fd.playingOn === 'Playing on', 'the feed names the device that plays, for the "Playing on" label');
+  seen.devices = [
+    { id: 'speaker-device-0001', name: 'Kitchen', type: 'Speaker', is_active: false },
+    { id: 'phone-device-000002', name: 'Phone', type: 'Smartphone', is_active: true },
+    { id: 'x', name: 'Bad id', type: 'Speaker', is_active: false },
+  ];
+  let om = await svc.cards.action('nowplaying', {}, 'output');
+  ok(
+    om.menu &&
+      om.menu.action === 'pick' &&
+      om.menu.items.length === 3 &&
+      om.menu.items[1].active === true &&
+      om.menu.items[2].id === 'tv' &&
+      !om.menu.items.some(i => i.id === 'x'),
+    'the output button answers with a menu: the devices of the account (a bad id left out), the active one marked, and This TV when it is not listed: ' +
+      JSON.stringify(om).slice(0, 200)
+  );
+  seen.xfer.length = 0;
+  ok((await svc.cards.action('nowplaying', {}, 'pick', 'speaker-device-0001')).ok === true, 'a device is picked');
+  ok(
+    seen.xfer.length === 1 && seen.xfer[0].device_ids[0] === 'speaker-device-0001' && seen.xfer[0].play === true,
+    'the music moves to it and keeps playing'
+  );
+  ok((await svc.cards.action('nowplaying', {}, 'pick', 'x')).error, 'an id that is not a device id is refused');
+  ok(seen.xfer.length === 1, 'and Spotify is not asked');
+  ok((await svc.cards.action('nowplaying', {}, 'pick', 'no')).ok === true && seen.xfer.length === 1, 'Cancel in the question does nothing');
+  // a speaker that Spotify does not list: asked first, woken only after the yes
+  const realDevices = svc.np.devices,
+    realWake = svc.np.wake,
+    realTransfer = svc.np.transfer,
+    woke = [];
+  svc.np.devices = async () => ({ devices: [{ id: 'wake-device-000001', name: 'Hall', type: 'Speaker', wake: true }] });
+  svc.np.wake = async id => (woke.push(id), { ok: true });
+  svc.np.transfer = async id => (woke.push(id), { ok: true });
+  const ask = await svc.cards.action('nowplaying', {}, 'pick', 'wake-device-000001');
+  ok(
+    ask.menu &&
+      ask.menu.action === 'pick' &&
+      ask.menu.items[0].id === 'w:wake-device-000001' &&
+      ask.menu.items[1].id === 'no' &&
+      woke.length === 0,
+    'a speaker to wake is first asked about on the TV: nothing is sent yet'
+  );
+  await svc.cards.action('nowplaying', {}, 'pick', 'w:wake-device-000001');
+  ok(woke.length === 1 && woke[0] === 'wake-device-000001', 'after the yes it is woken');
+  svc.np.devices = realDevices;
+  svc.np.wake = realWake;
+  svc.np.transfer = realTransfer;
+  ok(np.status().wake === true, 'the status says waking speakers is on when the permission was granted');
+  launched.length = 0;
+  ok((await svc.cards.action('nowplaying', {}, 'open')).ok === true, 'the cover opens the Spotify app');
+  ok(
+    launched.length === 1 &&
+      launched[0].id === 'spotify-beehive' &&
+      launched[0].uri.indexOf('applicationManager/launch') > 0 &&
+      launched[0].p.contentTarget === 'spotify:track:abc',
+    'on the song that plays: ' + JSON.stringify(launched)
+  );
+  ok(
+    (await svc.cards.action('nowplaying', {}, 'pick', 'tv')).ok === true && launched.length === 2,
+    'the This TV row does what the cover does'
+  );
+  seen.devices = [{ id: 'tv-device-000000001', name: 'Living room TV', type: 'TV', is_active: false }];
+  seen.xfer.length = 0;
+  await svc.cards.action('nowplaying', {}, 'pick', 'tv-device-000000001');
+  ok(seen.xfer.length === 0 && launched.length === 3, 'a TV in the list is opened, not moved to (the app would stay paused)');
+  playing = { status: 200, body: track({ is_playing: false }) };
+  skew += 20000;
+  await svc.cards.feed('nowplaying', {});
+  launched.length = 0;
+  await svc.cards.action('nowplaying', {}, 'open');
+  ok(launched.length === 1 && !launched[0].p.contentTarget, 'a paused song is not started: the app opens on its Home');
+  const noLaunch = M.create({
+    id: 'spotify',
+    dir: addonDir,
+    dataDir: path.join(process.env.CYTV_DIR, 'addon-data', 'spotify'),
+    log: m => said.push(m),
+    fetch: req('fetch'),
+    util: { lanIp: () => '127.0.0.1', randomInt: nc.randomInt, mkdirp: nc.mkdirp, i18n: req('i18n') },
+    env: { lang: () => '', wallpaperSize: () => '4k' },
+    settings,
+  });
+  ok(
+    (await noLaunch.cards.action('nowplaying', {}, 'open')).error,
+    'without the permission to start apps the cover says so instead of failing'
+  );
+  const manifest = JSON.parse(require('fs').readFileSync(path.join(addonDir, 'addon.json'), 'utf8'));
+  ok(
+    manifest.permissions.indexOf('luna') >= 0 &&
+      manifest.luna.length === 1 &&
+      manifest.luna[0].uri === 'luna://com.webos.applicationManager/launch' &&
+      ['prev', 'toggle', 'next', 'output', 'open', 'pick'].every(n => manifest.cards[0].actions.some(a => a.name === n)),
+    'addon.json asks for the one luna call that starts an app, and declares the actions of the card'
+  );
+
   // the phone page
   let pr = await svc.settings({});
   const code = pr.code;
@@ -461,15 +583,19 @@ run(async () => {
   // ---- the card as the service offers it ----
   const fs = require('fs');
   const man = JSON.parse(fs.readFileSync(path.join(addonDir, 'addon.json'), 'utf8'));
-  const chk = req('addons').check(man, '1.6.16');
+  const chk = req('addons').check(man, '1.6.17');
   ok(
-    chk.manifest && chk.manifest.provides.join() === 'cards' && chk.manifest.permissions.join() === 'net.fetch',
-    'the manifest is accepted and asks for the network only'
+    chk.manifest &&
+      chk.manifest.provides.join() === 'cards' &&
+      chk.manifest.permissions.join() === 'net.fetch,luna' &&
+      chk.manifest.luna.length === 1,
+    'the manifest is accepted and asks for the network and one luna call'
   );
-  ok(req('addons').check(man, '1.6.15').error, 'it needs the service that has cards for add-ons');
+  ok(req('addons').check(man, '1.6.16').error, 'it needs the service that has the luna permission');
   ok(
-    chk.manifest.cards[0].id === 'nowplaying' && chk.manifest.cards[0].actions.map(x => x.name).join() === 'prev,toggle,next',
-    'one card with the three buttons'
+    chk.manifest.cards[0].id === 'nowplaying' &&
+      chk.manifest.cards[0].actions.map(x => x.name).join() === 'prev,toggle,next,output,open,pick',
+    'one card with the buttons, the cover and the output menu'
   );
   const page = fs.readFileSync(path.join(addonDir, 'cards', 'nowplaying', 'card.js'), 'utf8');
   ok(!/XMLHttpRequest|fetch\(|WebSocket|new Image|=>|\bconst\b|\blet\b/.test(page), 'the page is ES5 and makes no request');

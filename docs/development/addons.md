@@ -2,7 +2,7 @@
 
 An add-on is a feature that is loaded, installed and removed on its own. Live TV and the Android box are bundled add-ons: they ship in the package (`helper/addons-bundled/iptv/` and
 `helper/addons-bundled/androidbox/`) and still answer their old paths (`/api/live/...`, `/api/androidbox...`), so the launcher and the
-manager did not change for them. A bundled add-on gets the service's own ctx as well as its add-on fields. Every add-on, bundled or not, also gets `util` (`lanIp`, `randomInt`, `mkdirp`, `i18n`) and `env` (`lang()`, `wallpaperSize()`). Other add-ons come from a catalog in this repository and are installed from the manager (**Add-ons**).
+manager did not change for them. A bundled add-on gets the service's own ctx as well as its add-on fields. Every add-on, bundled or not, also gets `util` (`lanIp`, `randomInt`, `mkdirp`, `i18n`) and `env` (`lang()`: the Language setting, or while that follows the TV the language Home is shown in, as the launcher says with the requests of the cards; `wallpaperSize()`). Other add-ons come from a catalog in this repository and are installed from the manager (**Add-ons**).
 
 What is done, and what is not:
 
@@ -52,7 +52,9 @@ What is done, and what is not:
   `addons.<id>.settings`, logged as `addon:<id>`) and, with the permission, `fetch` (`net.fetch`) and `notify(body)` (`notify`).
   It has no `exec`, and no `luna` unless the manifest asks for it (the permission `luna`, below). This is a convention, not a sandbox: the code runs in the service, which is why a service add-on is
   only installed from the catalog, where every file is pinned by hash and reviewed. The service must run on Node.js 8.12.
-- `routes` and `enabledOption` are for bundled add-ons only.
+- `routes` and `enabledOption` are for bundled add-ons only: an installed add-on is reached through `/api/addons/<id>/...`.
+- A service add-on that opens a port or sets a timer also returns `stop()`, which closes them; the switch of a service add-on takes effect at the
+  next start of the service. The phone remote keeps its LAN listener and its two timers that way.
 
 ## The Android box (the androidbox add-on)
 
@@ -69,6 +71,23 @@ the reset. The manifest's `routes` is `/api/icons`. Like the Android box, the co
 (`addons.module('icons')`): `helper/apps.js` sends the picture first on `/icon/<app id>`, marks the app with `iv` (and `it` for Full tile)
 and adds `icons: true` to `/api/apps` while the add-on runs; the launcher offers **Change icon** and **Reset icon** only then, and the
 manager's status has `icons` for its **App icons** row. Switched off, every app shows its own icon and the pictures stay on the TV.
+
+## The phone remote (the phoneremote add-on)
+
+`addons/catalog/phoneremote/` holds everything of the [phone remote](../phone-remote.md): the service (`service.js`: pairing, tokens, the
+paired phones), its own WebSocket (`ws.js`), the key adapter (`remotekeys.js`), the phone page (`page.js`), the guess for the phone's name
+(`devicename.js`, `tvname.js`), and the add-on's own page on the TV (`src/` → `page/index.html`, pairing and the paired phones).
+
+It is **installed from the catalog**, like the Spotify and Jellyfin add-ons: it opens a port on the LAN and lets a paired phone control the
+TV, so a person installs it on purpose, and every file is pinned by hash. It gets only its `ctx`: the paired phones and the "remove unused
+phones" choice are its settings (`config.json`, `addons.phoneremote.settings`), the SSAP key is `ssap-key` in its data folder
+(`addon-data/phoneremote/`), and its calls to LG's services are the ones `addon.json` lists (`networkinput`, `ime`, `audio`, `tvpower`,
+`settings`, `systemproperty`). Its API is `/api/addons/phoneremote/...`, answered by `service.js`; the listener on port 8799 is its own and
+runs only while a phone is paired or the pairing window is open.
+
+The manager has no screens for it: the add-on's page does that (**Add-ons > Phone remote**, and a page of the book on Home). The launcher
+and the Live TV page know nothing of it: a channel chosen on the phone is Live TV opened as a card opens it, then the channel's number
+pressed on the remote's digits.
 
 ## Live TV (the iptv add-on)
 
@@ -125,7 +144,7 @@ and its **buttons** send the add-on **actions**. The frame stays closed: no netw
 - `id`: as a card's: lower-case letters, digits and hyphens, the card type is `x-<id>`. A downloaded card with the same id wins; the id of a card of
   the launcher itself is refused. The card is offered (in Customise and on the phone page, with its options as the form) only while the add-on runs and
   is switched on, and goes with it; it is not removed from **Cards**.
-- `poll`: seconds between two requests for data (2 to 3600; 0 or left out: the card has no data). The launcher asks only while Home is on screen, one
+- `poll`: seconds between two requests for data (2 to 3600; 0 or left out: the card has no data). While Home is on screen the launcher asks at this pace; while it is not (an app in front) at most once a minute. It asks one
   request at a time, and only for a card that is set for a place.
 - `actions`: what the card's buttons can do (at most 8): a `name` and a `label`, which is what the remote's focus shows and is in the language of
   the add-on (translate it with the add-on's own words).
@@ -204,8 +223,9 @@ keys for itself lists them in `claims`: `digits` (the number buttons), `colors` 
 Back itself, for example to close its own menus first, then asks for Home with `{cytvAddon: 'close'}`). Live TV claims all three:
 digits tune channels and the colour buttons open its menus, so inside Live TV you leave with Back (and then turn to another page).
 Other pages include `/addon/sdk.js`: Back goes to Home, the number and colour buttons switch pages, and `CYTV.api(path, body)` calls
-`/api/addons/<id>/<path>`. Write the page in ES5 (Chromium 68, webOS 5). The launcher sends the page its language, clock format and
-theme colours as query parameters and a message.
+`/api/addons/<id>/<path>`. A page that shows a QR code (the phone remote's pairing screen) includes `/addon/qrcode.js` as well: it is the
+one `third-party/qrcode-generator` file, which the package puts beside the helper files and the loader serves. Write the page in ES5
+(Chromium 68, webOS 5). The launcher sends the page its language, clock format and theme colours as query parameters and a message.
 
 The service accepts a page's requests (their origin is the service itself) only from the loopback address, only for `/addon/...`
 and for `/api/addons/<id>/...` with that add-on's own page as the Referer. Install and remove are not open to pages.
@@ -230,7 +250,7 @@ left out stays installed and running but has no button.
 | `POST /api/addons/remove {id}` | Deletes an installed add-on. `restartNeeded` when its service part was loaded. |
 | `POST /api/addons/<id>/enable {enabled}` | Stored in `config.json` (or, for an add-on with `enabledOption`, in that option). A page add-on follows at once, a service add-on at the next start. |
 | `/api/addons/<id>/...` | Answered by the add-on's `service.js`. |
-| `GET /addon/<id>/<file>`, `GET /addon/sdk.js` | The page and the helper script. |
+| `GET /addon/<id>/<file>`, `GET /addon/sdk.js`, `GET /addon/qrcode.js` | The page, the helper script, and the QR code generator a page may draw with (one copy in the repository, `third-party/qrcode-generator`). |
 
 ## What the catalog has
 
@@ -242,8 +262,10 @@ left out stays installed and running but has no button.
 | `immich` | Photos from your Immich albums as the Home wallpaper, a photo source (see above): the sync, the albums and the phone page (port 8795) moved here from Wallpapers. A TV that had Immich before hands its settings and photos to it once. |
 | `unsplash` | A new random photo from Unsplash as the Home wallpaper, a live photo source (see above): the Access Key, the 3-minute pace, the credit line and the phone page (port 8796). Pictures stay on Unsplash's host; nothing is saved on the TV. |
 | `weather` | The **Weather forecast** card for Home, a card of an add-on (see above): the weather at a city you choose on the phone page, with buttons for the remote (Now, Hours, Days). From Open-Meteo, no key; only the coordinates leave the TV, at most every 30 minutes. |
-| `spotify` | The **Spotify now playing** card for Home, a card of an add-on (see above): the cover, title and artist of what plays on your Spotify account, with previous, play or pause and next as buttons for the remote (Premium). Your own Spotify developer app (its Client ID; sign-in with PKCE), set up from your phone (page on port 8797): Add-ons > Spotify now playing > Set up from your phone. The tokens stay in the add-on's settings. |
+| `spotify` | The **Spotify now playing** card for Home, a card of an add-on (see above): the cover, title and artist of what plays on your Spotify account, with previous, play or pause, next and the output as buttons for the remote (Premium); the cover opens the Spotify app on the song (permission `luna`), the output button answers with a menu of the devices (the add-on also wakes the speakers of the network that Spotify does not list, over mDNS, as the Spotify apps do). Your own Spotify developer app (its Client ID; sign-in with PKCE), set up from your phone (page on port 8797): Add-ons > Spotify now playing > Set up from your phone. The tokens stay in the add-on's settings. |
+| `jellyfin` | The **Continue watching** card for Home, a card of an add-on (see above): the films and episodes you did not finish on your Jellyfin server (and, as an option, the next episode of a series you follow), with their pictures (wide stills or posters) and a bar for how far you got. Each one is a button: OK opens your Jellyfin app (the official one, Litefin or Moonfin: the first one installed, or the one chosen in the card's options) with `{itemId, serverId, tmdbId, mediaType, title}` as launch parameters. Litefin opens the title by its TMDB id (after 2.0.20); the other apps read no launch parameters on webOS and open on their Home. Set up from your phone (page on port 8798): the address, user name and password; only the access token is kept, in the add-on's settings. The permission `luna` is for `getAppInfo` and `launch`. Needs service 1.6.17. |
 | `tuner` | **TV guide (LG tuner)**: a guide for the TV's own tuner (antenna, cable): the channels, what is on now and next and the schedule of the selected channel, read from the data LG's own guide uses; OK opens LG's Live TV on the channel. A page add-on of its own, with the permission `luna` for three LG services. Its page is built from the same guide code as Live TV (`addons/catalog/tuner/src/index.html` includes the files of `helper/addons-bundled/iptv/src`), so the two guides stay alike; it needs neither Live TV nor a playlist. Needs service 1.6.17. |
+| `phoneremote` | **Phone remote** (see above): a phone on your Wi-Fi as the TV's remote. A service add-on with a page of its own on the TV (pairing and the paired phones), the permission `luna` for six LG services, and its phone page on port 8799 while a phone is paired or a window is open. Its settings (the paired phones, the unused-phone expiry) stay in its own settings. Needs service 1.6.18. |
 
 ## Versions
 

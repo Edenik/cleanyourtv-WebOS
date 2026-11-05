@@ -46,9 +46,28 @@ updated.
 
 ## Preloaded apps
 
-LG starts some apps in the background at boot so they open faster (YouTube, Netflix, the web browser). On a TV with little
-memory that can cost more than it saves. In **Debloat** you can switch on **Close YouTube / Netflix / Web Browser preloaded at
-boot**: about 90 seconds after the service starts, and when you switch it on, the app is closed if it is running and not in front.
-The ids are listed in `options.closePreloaded` in `config.json`. Nothing is changed on the TV: LG preloads the app again at the
-next boot and the service closes it again, and the app opens a little slower the first time you start it. Home, the inputs and
-CleanYourTV's own apps are never closed this way.
+LG's preload manager (`webos-preload-manager`) starts some apps in the background so they open faster: YouTube, Netflix, the web
+browser, Home, the inputs. It looks again every 5 minutes, so an app you close comes back. On a TV with little memory that can cost
+more than it saves.
+
+In the manager app, **Experimental > Preloaded apps** lists every app in the TV's preload policy with the free memory LG wants before it preloads it (the `requiredMemory` the preload manager reports, in MB as far as I know; it is not a measured size of the app).
+Select an app to change:
+
+- **State**: *off* (never preloaded) or how much of the app LG starts: *partial*, *semi-full*, *full*, *criu* (restored from a
+  snapshot). Press to go to the next one.
+- **How often**: *periodic* (again at every check) or *oneshot* (once).
+- **Back to the TV's own**: the values the TV had when it started.
+
+An app LG does not allow to be preloaded on your TV, and Home (which LG manages with its own rules), are shown but cannot be changed.
+Switching an app off also closes it when it runs in the background and is not in front.
+
+The choices are kept in `options.preloadPolicy` in `config.json`. LG's preload manager keeps nothing over a reboot, so the service
+sets them again about 20 seconds after it starts, again every 5 minutes in case LG changed them back, and right after the TV wakes from standby (LG sets its own policy again then; Node does not count standby time, so waiting for the 5 minutes would take 5 awake minutes). The wake check (a look every 10 seconds) only runs while at least one app has a saved choice; a choice made or reset in the manager starts or stops it at once, and with no choices the service has no extra timer. Nothing is written to
+What LG had set (the value "Reset" goes back to) is read once, before the service changes anything, and kept in `preload-base.json` in the service folder, so it stays over reboots, standby and updates. After a firmware update it is read again (the file is marked with the firmware it was read on), so Reset does not go back to the values of the old firmware. the TV's own files: reset every app, or reboot without the boot scripts, and the TV is as LG ships it.
+
+Older versions had three switches in **Debloat** (`options.closePreloaded`); an app on that list counts as switched off.
+
+How it was found on a webOS 25 TV (`com.webos.service.preloadmanager`): `setPreloadPolicy` changes the policy at run time only; an
+omitted `isEnabled` becomes false, so the service always sends it; the daemon accepts any text as a mode, so the service checks it
+against the four known ones; `isAllowed` can be read but not changed. Other firmware may differ: if the TV has no preload
+manager, the screen says so.

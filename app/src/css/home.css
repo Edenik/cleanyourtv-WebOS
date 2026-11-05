@@ -1251,7 +1251,8 @@ body.scenes-on {
 [data-cards="glass"] .card-ha-weather,
 [data-cards="glass"] .card-ha-entity,
 [data-cards="glass"] .card-ha-entities,
-[data-cards="glass"] .card-ha-camera {
+[data-cards="glass"] .card-ha-camera,
+[data-cards="glass"] .card-frame {
   padding: 22px 28px;
   border-radius: 30px;
   background-color: rgba(30, 20, 28, 0.34);
@@ -1264,6 +1265,13 @@ body.scenes-on {
 }
 [data-cards="glass"] .card-ha-camera {
   padding: 0;
+}
+/* a card with its own page on glass: the page inside the margins of the panel (cards.js moves the targets of its buttons along) */
+[data-cards="glass"] .card-frame > iframe {
+  left: 18px !important;
+  top: 16px !important;
+  width: calc(100% - 36px) !important;
+  height: calc(100% - 32px) !important;
 }
 [data-cards="glass"] .card-ha-entity.f {
   background-image: none !important;
@@ -1303,4 +1311,36 @@ body.scenes-on {
 .card-btn.f {
   background: rgba(255, 255, 255, 0.14);
   box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.9);
+}
+/* the focus the card asks for: a ring around a cover, a filled round button (the Spotify card, as it was drawn by the launcher itself) */
+.card-btn-ring,
+.card-btn-fill {
+  transition:
+    transform calc(0.15s * var(--spd)) ease-out,
+    background-color calc(0.15s * var(--spd)) linear;
+}
+.card-btn-ring.f {
+  background: none;
+  box-shadow: 0 0 0 4px var(--focus);
+  transform: scale(1.04);
+}
+.card-btn-fill.f {
+  background: var(--acc);
+  box-shadow: none;
+  transform: scale(1.1);
+}
+/* the pointer (Magic Remote, mouse, touchpad) over a button shows the same as the focus does */
+.card-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.9);
+}
+.card-btn-ring:hover {
+  background: none;
+  box-shadow: 0 0 0 4px var(--focus);
+  transform: scale(1.04);
+}
+.card-btn-fill:hover {
+  background: var(--acc);
+  box-shadow: none;
+  transform: scale(1.1);
 }

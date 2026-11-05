@@ -596,6 +596,90 @@ function build() {
     rows.push({ label: 'No, keep it', fn: pop });
     return;
   }
+  if (view === 'preload') {
+    rows.push({
+      label: 'Preloaded apps',
+      sub: 'LG starts these in the background so they open faster, and checks again every 5 minutes · off frees memory · set again at every boot',
+      fn: function () {},
+    });
+    if (!preSet || !preSet.available)
+      rows.push({ label: 'Not available', sub: (preSet && preSet.error) || 'this TV has no preload manager', fn: function () {} });
+    else
+      preSet.apps.forEach(function (a) {
+        var fixed = preloadFixed(a);
+        rows.push({
+          label: preloadName(a.id),
+          sub: fixed
+            ? fixed
+            : preloadState(a) +
+              (a.enabled ? ' · ' + a.type : '') +
+              ' · ' +
+              a.memory +
+              ' MB free needed' +
+              (a.saved ? ' · changed by you' : ''),
+          fn: function () {
+            if (fixed) return banner(fixed, 'err');
+            preApp = a.id;
+            push('preloadapp');
+          },
+        });
+      });
+    rows.push({ sep: true });
+    rows.push({ label: 'Back', fn: pop });
+    return;
+  }
+  if (view === 'preloadapp') {
+    var pa = preloadApp(preApp);
+    if (!pa) {
+      pop();
+      return;
+    }
+    /* only the modes this TV itself uses for some app (now, or when it started) and this app's own: criu or full are not offered where
+       LG uses neither, since the row steps through them one by one and a TV without that kernel support could be left with a mode it cannot run */
+    var seen = {};
+    (preSet.apps || []).forEach(function (x) {
+      seen[x.mode] = true;
+      if (x.base) seen[x.base.mode] = true;
+    });
+    seen[pa.mode] = true;
+    var states = ['off'].concat(
+      preSet.modes.filter(function (m) {
+        return seen[m];
+      })
+    );
+    rows.push({
+      label: preloadName(pa.id),
+      sub: pa.id + ' · LG preloads it only while ' + pa.memory + ' MB of memory is free (LG’s own figure)',
+      fn: function () {},
+    });
+    rows.push({
+      label: 'State',
+      sub:
+        preloadState(pa) +
+        ' · off: never preloaded · partial < semi-full < full: more of the app is started · criu: restored from a snapshot',
+      fn: function () {
+        var to = states[(states.indexOf(preloadState(pa)) + 1) % states.length];
+        preloadSet(pa.id, to === 'off' ? { enabled: false } : { enabled: true, mode: to });
+      },
+    });
+    rows.push({
+      label: 'How often',
+      sub: pa.type + ' · periodic: again at every check · oneshot: once',
+      fn: function () {
+        preloadSet(pa.id, { type: preSet.types[(preSet.types.indexOf(pa.type) + 1) % preSet.types.length] });
+      },
+    });
+    rows.push({
+      label: 'Back to the TV’s own',
+      sub: pa.base ? (pa.base.enabled ? pa.base.mode : 'off') + ' · ' + pa.base.type + ' (as it was when the TV started)' : 'not known',
+      fn: function () {
+        if (pa.base) preloadSet(pa.id, { reset: true });
+      },
+    });
+    rows.push({ sep: true });
+    rows.push({ label: 'Back', fn: pop });
+    return;
+  }
   if (view === 'volumebar') {
     var curV = (st.options && st.options.volumeTheme) || 'system';
     rows.push({
@@ -691,6 +775,11 @@ function build() {
       fn: function () {
         push('volumebar');
       },
+    });
+    rows.push({
+      label: 'Preloaded apps',
+      sub: 'choose which apps LG starts in the background, and how much',
+      fn: preloadLoad,
     });
     if (zr && zr.available) {
       rows.push({
@@ -1346,16 +1435,6 @@ function debloatRows() {
     });
   });
   rows.push({ sep: true });
-  PRELOAD.forEach(function (a) {
-    rows.push({
-      label: 'Close ' + a.label + ' preloaded at boot',
-      sub: onoff(preloadClosed(a.id)) + ' \u00B7 closes it in the background about 90 s after boot (not when it is in front)',
-      fn: function () {
-        preloadToggle(a.id);
-      },
-    });
-  });
-  rows.push({ sep: true });
   var anyOff = DEBLOAT.some(function (g) {
     return !debloatOn(g.id);
   });
@@ -1374,21 +1453,69 @@ var DEBLOAT = [
   { id: 'logs', label: 'Telemetry logs', what: 'remotelogger, service-logger' },
   { id: 'suggestions', label: 'Suggestions and nudges', what: 'contentminer, nudge, sportsalarm' },
 ];
-/* apps LG preloads at boot (helper/preload.js); options.closePreloaded lists the ones to close */
-var PRELOAD = [
-  { id: 'youtube.leanback.v4', label: 'YouTube' },
-  { id: 'netflix', label: 'Netflix' },
-  { id: 'com.webos.app.browser', label: 'Web Browser' },
-];
-function preloadClosed(id) {
-  return ((st.options || {}).closePreloaded || []).indexOf(id) >= 0;
+/* Experimental: preloaded apps (helper/preload.js). The TV's policy per app: off, or how much of it is started (mode), and how often (type). */
+var preSet = null,
+  preApp = '';
+var PRELOAD_NAMES = {
+  'youtube.leanback.v4': 'YouTube',
+  netflix: 'Netflix',
+  amazon: 'Prime Video',
+  'com.webos.app.browser': 'Web Browser',
+  'com.webos.app.home': 'Home',
+  'com.webos.app.fullhome': 'Home (full)',
+  'com.webos.app.livetv': 'Live TV',
+  'com.webos.app.livemenu': 'Live menu',
+  'com.webos.app.voice': 'Voice',
+  'com.webos.app.hdmi1': 'HDMI 1',
+  'com.webos.app.hdmi2': 'HDMI 2',
+  'com.webos.app.hdmi3': 'HDMI 3',
+  'com.webos.app.hdmi4': 'HDMI 4',
+  'google.assistant': 'Google Assistant',
+  airplay: 'AirPlay',
+};
+function preloadName(id) {
+  return PRELOAD_NAMES[id] || id;
 }
-function preloadToggle(id) {
-  var list = ((st.options || {}).closePreloaded || []).filter(function (x) {
-    return x !== id;
-  });
-  if (!preloadClosed(id)) list.push(id);
-  opt({ closePreloaded: list });
+function preloadApp(id) {
+  var l = (preSet && preSet.apps) || [];
+  for (var i = 0; i < l.length; i++) if (l[i].id === id) return l[i];
+  return null;
+}
+/* the state of an app: "off", or its mode */
+function preloadState(a) {
+  return a.enabled ? a.mode : 'off';
+}
+function preloadFixed(a) {
+  return !a.allowed ? 'LG does not preload it on this TV' : a.managed ? 'LG manages it' : '';
+}
+function preloadLoad(stay) {
+  api('/api/preload').then(
+    function (r) {
+      preSet = r;
+      if (stay === true) {
+        build();
+        draw();
+      } else push('preload');
+    },
+    function () {
+      banner('The service did not answer', 'err');
+    }
+  );
+}
+function preloadSet(id, change) {
+  var body = { id: id };
+  for (var k in change) body[k] = change[k];
+  api('/api/preload', body, 20000).then(
+    function (r) {
+      preSet = r;
+      if (r.error) banner(r.error, 'err');
+      build();
+      draw();
+    },
+    function () {
+      banner('The service did not answer', 'err');
+    }
+  );
 }
 /* Experimental: compressed memory (zram, helper/zram.js). The service answers with what the TV has now. */
 var zr = null,

@@ -47,25 +47,76 @@
       }
     },
     {
-      "id": "spotify",
-      "name": "Spotify now playing",
+      "id": "jellyfin",
+      "name": "Jellyfin continue watching",
       "version": "1.0.0",
-      "description": "A card for Home with what plays on your Spotify account, and buttons for the remote.",
-      "about": "A card for Home that shows what plays, or is paused, on any device of your Spotify account: the cover, the title, the artist and a thin progress bar, with previous, play or pause and next as buttons for the remote (the controls need Spotify Premium). It asks Spotify's Web API with your own Spotify developer app (only its Client ID: the sign-in uses PKCE, so the project holds no credential and no client secret is needed); the tokens stay on the TV, in this add-on's settings. Set it up from your phone: Add-ons > Spotify now playing > Set up from your phone. The idea and the first version are from @Edenik (pull request 127).",
+      "description": "A row on Home with where you were in Jellyfin, with the pictures; OK opens your Jellyfin app.",
+      "about": "A card for Home with the films and episodes you did not finish on your Jellyfin server, and if you like the next episode of a series you follow: the picture, the title and how far you got. Each one is a button: OK opens your Jellyfin app, the official one, Litefin or Moonfin. Litefin opens the title itself (after its version 2.0.20); the others open on their own Home. The card talks only to your own server. Set up: Add-ons > Jellyfin continue watching > Set up from your phone. The TV keeps only the access token, never your password.",
       "preview": "preview.jpg",
       "kind": "service",
       "permissions": [
-        "net.fetch"
+        "net.fetch",
+        "luna"
       ],
       "files": {
-        "addon.json": "3c0b9dbd4e980513d3986100321164b7ab2ca0a4ebb499936b05364a6cde7f77",
-        "cards/nowplaying/card.css": "f00ef31dc24f7fd9530bdabe6b74aae9b1c9b0660f879a7b10b41f8f1c943958",
-        "cards/nowplaying/card.html": "1250308bd63a9441fac2683006268e21b0e7861c7c56b33a109ae7db4b6db026",
-        "cards/nowplaying/card.js": "23fcb35875f914807cc820e1b1854407a9661025ebee6de63e6c4b178343efc6",
+        "addon.json": "46c4c4f785042586eab9bf04b46c9588a243008eb9a7f9c474af364c88b2f176",
+        "cards/continue/card.css": "4fa91cf45225cb62e120295378dc72bcd6f4ee9442ee7f2059fb17ccdb636841",
+        "cards/continue/card.html": "625e062837cbda14fc3d37f7c716adeaed0ef65ca0b2c87346ee03bbc7213f8d",
+        "cards/continue/card.js": "070f228981684091b7da9f9c25af638321f100c53ba1b5bb6263f757a7d22942",
+        "cards/continue/preview.jpg": "0ac03a4a4243c4534eddbfee7a7ae1996491f5036b663d690044e2f769446009",
+        "jellyfin.js": "65511aad779fe149625e5f2805fa14be35a2cb60c06fff5a4d0a8b5ea786684b",
+        "phone.js": "2746902ef82be054d1fee24d8e34b9a0c99e732332ca1e2c2de08cddbe2b8f2a",
+        "service.js": "d3e56e2263ae2b7447428ca09b45d894d5b7c0f207cab5153cceb777ac1e6213"
+      }
+    },
+    {
+      "id": "phoneremote",
+      "name": "Phone remote",
+      "version": "1.0.0",
+      "description": "A phone on your Wi-Fi as the TV's remote: buttons, a touchpad, the keyboard, the apps and Live TV.",
+      "about": "A phone on the same Wi-Fi becomes the TV's remote control. It pairs once with a 6-digit code the TV shows, then its browser page reconnects by itself: the remote's buttons, a touchpad that moves the TV's pointer, a keyboard that types into the field open on the TV, the TV's apps and the channels of your Live TV playlist, and a power button. Each phone can be blocked or removed, and a phone that is not used for a while is removed by itself. The phone remote is off until you switch it on in Add-ons; its page (Add-ons > Phone remote, and a page of the book on Home) pairs a phone and lists the paired ones.",
+      "preview": "preview.jpg",
+      "kind": "service",
+      "permissions": [
+        "luna"
+      ],
+      "files": {
+        "addon.json": "2959fe83f5b026b28ec9e9fff37c821a81b14a852b8ac8372d37a49cf9f05975",
+        "devicename.js": "a0ef58074f9c4ef9fd66e7c7a51259b184167304f95e0d36d4bb544db6750d14",
+        "page/index.html": "1ffd0e2bd7c8d9a78485c6ae42e394971f4a243b8cebca2ce7797e32159c282a",
+        "page.js": "985cedb9ca9b6038eff61f4ac45f0db1a803b0ee6b0adcf99430c9b0dec926ee",
+        "remotekeys.js": "2f65affbb6a6ff057947d81a553ee3d2063d293edaed4cdcb4a0019b380ea8d3",
+        "service.js": "546b22ab0ad096e8891debd36fd5574430ceae162990b9a5796efc5558826801",
+        "src/css/page.css": "ff3788b972b16e8f48c494517988ccfac10b773f8eaae4e6a1aaf95094928a27",
+        "src/html/body.html": "339681a4f5f8853686b9ae5ec04994bd10eb698e687cf32478d8911e4d0871fc",
+        "src/index.html": "4c1ec138cc086ce738386844e0bb5c3d667bb5ad0a0d53b4308740e4b0e1f4d8",
+        "src/js/page.js": "fc0a45bdf0f608e9ca8331d663f270e9fc710c8c6331847325beb26a384c306c",
+        "tvname.js": "f2b79e333f234bbf0052164f9273b225a9a1d2360ae22a32c85ff70511328ca6",
+        "ws.js": "c2cd76df01a680c1c7baf0b41b4eb11effec4b5eb0d2d555fe1ccc0a8419a210"
+      }
+    },
+    {
+      "id": "spotify",
+      "name": "Spotify now playing",
+      "version": "1.1.0",
+      "description": "A card for Home with what plays on your Spotify account, and buttons for the remote.",
+      "about": "A card for Home that shows what plays, or is paused, on any device of your Spotify account: the cover, the title, the artist and a thin progress bar, with previous, play or pause, next and the output (where it plays) as buttons for the remote, and the cover opens the Spotify app of the TV on the song (the controls need Spotify Premium). It asks Spotify's Web API with your own Spotify developer app (only its Client ID: the sign-in uses PKCE, so the project holds no credential and no client secret is needed); the tokens stay on the TV, in this add-on's settings. Set it up from your phone: Add-ons > Spotify now playing > Set up from your phone. The idea and the first version are from @Edenik (pull request 127).",
+      "preview": "preview.jpg",
+      "kind": "service",
+      "permissions": [
+        "net.fetch",
+        "luna"
+      ],
+      "files": {
+        "addon.json": "59870d7b02a11fd24e91bd5673a558c72c533472971e32241effe689b41615be",
+        "cards/nowplaying/card.css": "13ecfa7ba271f3186860529edeb9ec04c4120165a52c2957eee8d51011d9c514",
+        "cards/nowplaying/card.html": "d58e43f0b0e52be39c5abd1e6875ccb08de280372486e56ed85543938f96b557",
+        "cards/nowplaying/card.js": "f916a8642e1298d15a2d20a05a2b870a3593c42a0f8fdb0845b1878c3313cf71",
         "cards/nowplaying/preview.jpg": "b4ec2f53f497cc06bac9967277cb28250a289a0d578b5a9bf469fe2c71319a82",
-        "nowplaying.js": "2400ec2590e55679363d17237386be683049b266dd8a59466fced0baa8fd5883",
-        "phone.js": "58b836bba61f34958b0864b94a968eee4799ce24e69ab2abd76cca55801feac9",
-        "service.js": "fe0dcaf4c962536a083fcd9842279123c7b78f9e173a4a771e1c474561610946"
+        "nowplaying.js": "f71cbe723659db1e961842728c484ff0c05ba697efcd14cb6c8365d0b267f7d6",
+        "phone.js": "ab2cb118a3ae58610aad7c6db01ead808d1f982fea6ef3a47e736739ce962f3c",
+        "service.js": "57c6ca58b3a772e645cb7a089c08743a50312738b3c770026f584e1d4db3862b",
+        "spotifyconnect.js": "519ba58fecf2acf196e044b4a77181f6d562945befd02f916931cf3a962cb9d9"
       }
     },
     {
@@ -96,7 +147,7 @@
       ],
       "files": {
         "addon.json": "c1988ff75d83c81498e7e62183b9634268520721216134cfb71f60957c8c8207",
-        "page/index.html": "ce86da51bb012628df308d0473a85fde8cc946616f014d968b43b0d997c97832",
+        "page/index.html": "2cdcf0b71cafa95f4388f5ed0fed117b2a2b8102bd8c38bfc3789c0ed02949da",
         "service.js": "63e99e9fa925c642bf37a337093f45d32ec0a7bd9f522b365018a437d60f6758",
         "src/index.html": "a97da7e3f223e4830404f92b5184cc647777cf4934acd13a960cecddd980e560",
         "tuner.js": "8c22501e09f98da5269c2fd0451f5d769931282d058094324dd8e5e340dfbd40"

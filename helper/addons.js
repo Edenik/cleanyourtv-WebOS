@@ -11,7 +11,8 @@
 //   GET  /api/addons/<id>                  one add-on
 //   POST /api/addons/<id>/enable {enabled} stored in config.json; takes effect at the next start (a page add-on at once)
 //   ANY  /api/addons/<id>/<path>           answered by the add-on's own service.js (path = what follows the id)
-//   GET  /addon/<id>/<file>                a file of the add-on's page (only while it runs); GET /addon/sdk.js is the helper for pages
+//   GET  /addon/<id>/<file>                a file of the add-on's page (only while it runs); GET /addon/sdk.js is the helper for pages,
+//                                          GET /addon/qrcode.js the QR code generator a page may draw with
 // An add-on of kind "service" is Node code that runs as root in this process; it gets a small ctx (its folders, its settings, fetch,
 // a log line) and a failing one is switched off without touching the rest. Installed add-ons come only from the catalog, file by
 // file against the SHA-256 in its index. DISABLE-ADDONS in the CleanYourTV folder (or ADDONS/DISABLE) loads none.
@@ -164,6 +165,15 @@ function cleanIndex(raw) {
   return out;
 }
 
+// the QR code generator an add-on's page may load as /addon/qrcode.js: beside the helper files on the TV (the package puts it there),
+// and in third-party/ on a computer
+function qrcodeFile() {
+  const beside = path.join(__dirname, 'qrcode.js'),
+    repo = path.join(__dirname, '..', 'third-party', 'qrcode-generator', 'qrcode.js');
+  if (fs.existsSync(beside)) return beside;
+  return fs.existsSync(repo) ? repo : '';
+}
+
 const rmrf = d => {
   try {
     for (const f of fs.readdirSync(d)) {
@@ -213,6 +223,9 @@ function create(ctx) {
   const settingsOf = id => addonsCfg(id).settings || {};
   const enabledOf = a =>
     a.manifest.enabledOption ? config.options()[a.manifest.enabledOption] !== false : addonsCfg(a.id).enabled !== false;
+  // whether an add-on is on now: one whose switch is an option (Live TV: options.liveTv) follows that option, also when another screen
+  // changes it (the manager's Live TV > Show Live TV); the others keep what was read at start or set with /enable
+  const isOn = a => (a.manifest && a.manifest.enabledOption ? enabledOf(a) : a.enabled);
   const find = id => list.filter(x => x.id === id)[0];
   const paused = () => fs.existsSync(path.join(path.dirname(P.ADDONS), 'DISABLE-ADDONS')) || fs.existsSync(path.join(P.ADDONS, 'DISABLE'));
 
@@ -229,7 +242,8 @@ function create(ctx) {
       // a few vetted helpers and settings of the service, for every add-on (not the service's own parts)
       util: { lanIp: web.lanIp, randomInt: nc.randomInt, mkdirp: nc.mkdirp, i18n: require('./i18n') },
       env: {
-        lang: () => config.get().lang || '', // the language the manager's Language setting chose ('' follows the TV)
+        // the language the manager's Language setting chose; while it follows the TV, the one Home is shown in ('' before Home asked)
+        lang: () => config.get().lang || require('./i18n').screen() || '',
         wallpaperSize: () => ((config.get().wallpapers || {}).size === 'hd' ? 'hd' : '4k'), // Wallpapers > Picture size
       },
       log: m => console.log('addon ' + a.id + ': ' + String(m).slice(0, 300)),
@@ -299,6 +313,13 @@ function create(ctx) {
       a.status = 'failed';
       a.error = String((e && e.message) || e).slice(0, 200);
       console.error('addon ' + a.id + ' failed to start: ' + ((e && e.stack) || e));
+      // whatever start() set up before it failed (a listener, a timer) is stopped here, so a restart of the switch starts clean
+      try {
+        if (typeof a.mod.stop === 'function') a.mod.stop();
+      } catch (e2) {
+        console.error('addon ' + a.id + ' failed to stop after a failed start: ' + ((e2 && e2.stack) || e2));
+      }
+      a.mod = null;
     }
   }
 
@@ -365,7 +386,7 @@ function create(ctx) {
     about: a.manifest ? a.manifest.about : '',
     preview: !!previewFile(a),
     permissions: a.manifest ? a.manifest.permissions : [],
-    enabled: a.enabled,
+    enabled: isOn(a),
     status: a.status,
     error: a.error,
     bundled: a.bundled,
@@ -571,6 +592,25 @@ function create(ctx) {
       res.writeHead(200, { 'content-type': TYPES.js, 'cache-control': 'no-cache' });
       return res.end(SDK);
     }
+    if (u === '/addon/qrcode.js') {
+      // a shared page asset: the QR code generator (third-party/qrcode-generator), for an add-on page that shows a QR (the phone remote's
+      // pairing screen). One copy in the repository: it ships in the package beside the helper files (ipk/build.py) and is read from
+      // third-party/ on a computer, where the package's flat layout does not exist.
+      const f = qrcodeFile();
+      if (!f) return web.notFound(res);
+      try {
+        const st = fs.statSync(f);
+        res.writeHead(200, {
+          'content-type': TYPES.js,
+          'content-length': st.size,
+          'cache-control': 'no-cache',
+          'x-content-type-options': 'nosniff',
+        });
+        return fs.createReadStream(f).pipe(res);
+      } catch (_) {
+        return web.notFound(res);
+      }
+    }
     const pg = /^\/addon\/([a-z][a-z0-9-]*)\/(.*)$/.exec(u);
     if (pg) {
       const a = find(pg[1]);
@@ -621,7 +661,8 @@ function create(ctx) {
       const b = await body(req);
       if (typeof b.enabled !== 'boolean') return web.json(res, { error: 'enabled must be true or false' }, 400);
       if (!a.manifest) return web.json(res, { error: 'this add-on cannot be switched on: ' + a.error }, 400);
-      const opt = a.manifest.enabledOption;
+      const opt = a.manifest.enabledOption,
+        changed = b.enabled !== isOn(a);
       config.update('addon:' + a.id, cfg => {
         if (opt) cfg.options = Object.assign({}, cfg.options, { [opt]: b.enabled });
         else {
@@ -629,13 +670,13 @@ function create(ctx) {
           cfg.addons[a.id] = Object.assign({}, cfg.addons[a.id], { enabled: b.enabled });
         }
       });
-      const changed = b.enabled !== a.enabled;
       a.enabled = b.enabled;
       if (a.manifest.kind === 'page' && a.status !== 'paused') {
         a.status = b.enabled ? 'running' : 'off';
         return web.json(res, { id: a.id, enabled: b.enabled, restartNeeded: false });
       }
-      return web.json(res, { id: a.id, enabled: b.enabled, restartNeeded: changed });
+      // an add-on switched by an option stays loaded and the launcher reads the option: no restart for it
+      return web.json(res, { id: a.id, enabled: b.enabled, restartNeeded: changed && !opt });
     }
     // the add-on's phone page (settings in its service, like a photo source's): the manager shows "Set up from your phone" for it
     if (m[2] === '/settings' && req.method === 'POST' && a.status === 'running' && a.mod && typeof a.mod.settings === 'function') {
@@ -668,10 +709,16 @@ function create(ctx) {
     return a && a.status === 'running' && a.mod ? a.mod : null;
   };
 
+  // the loader's record of an add-on whatever its status, the module included (the tests check what it holds; module(id) is for a running one)
+  const state = id => {
+    const a = find(id);
+    return a ? { id: a.id, dir: a.dir, bundled: a.bundled, enabled: a.enabled, status: a.status, error: a.error, mod: a.mod } : null;
+  };
+
   // the running, switched-on add-ons that provide something ("provides" in their manifest): [{id, name, mod}]
   const providers = what =>
     list
-      .filter(a => a.manifest && a.status === 'running' && a.enabled && a.mod && a.manifest.provides.indexOf(what) >= 0)
+      .filter(a => a.manifest && a.status === 'running' && isOn(a) && a.mod && a.manifest.provides.indexOf(what) >= 0)
       .map(a => ({ id: a.id, name: a.manifest.name, mod: a.mod }));
 
   // the cards of the running, switched-on add-ons that provide "cards": [{addon, dir, mod, card}]
@@ -688,6 +735,7 @@ function create(ctx) {
     match,
     pageMay,
     module,
+    state,
     providers,
     cardsOf,
     handle,

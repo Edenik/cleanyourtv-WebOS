@@ -23,6 +23,7 @@ module.exports = {
   CARDPACKS: env.CYTV_CARDPACKS || D + '/cardpacks', // downloaded cards: one folder each with a card.json (cardcatalog.js)
   ADDONS: env.CYTV_ADDONS || D + '/addons', // add-ons: one folder each with an addon.json (addons.js)
   ADDON_DATA: env.CYTV_ADDON_DATA || D + '/addon-data', // what each add-on stores, apart from its code
+  PRELOAD_BASE: D + '/preload-base.json', // what LG's preload policy had before we changed it (preload.js); kept over reboots
   WEATHER: D + '/weather.json', // the weather card's last answers (weather.js)
   HOOK: D + '/inputhook',
   APP: D + '/app',
@@ -36,6 +37,7 @@ module.exports = {
   SYSLOG: env.CYTV_SYSLOG || '/var/log/messages', // LG's system log: a line per remote button press, with the button's name (keynames.js)
   LASTAPP: '/var/luna/preferences/bootd_last_foreground_app_id.json',
   PROC: env.CYTV_PROC || '/proc',
+  APP_PACKAGES: ['/media/cryptofs/apps/usr/palm/packages', '/media/developer/apps/usr/palm/packages'], // installed apps' packageinfo.json (running.js)
   ZRAM: env.CYTV_ZRAM || '/sys/block/zram0', // the zram device's settings and counters (zram.js)
   SYSBLOCK: env.CYTV_SYSBLOCK || '/sys/block', // the block devices, for the eMMC's discard support (fstrim.js)
   HOME_APP: '/usr/palm/applications/com.webos.app.home',

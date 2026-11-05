@@ -33,9 +33,10 @@ run(async () => {
   // ---- the feature ----
   const conf = memoryConfig({ remap: {}, keys: { input: '', home: '777', voice: '', guide: '' } });
   const launched = [];
+  let front = ''; // the app in front, as the app manager says
   const luna = async (uri, payload) => {
     launched.push(uri.split('/').pop() + ' ' + JSON.stringify(payload));
-    return { returnValue: true };
+    return /getForegroundAppInfo/.test(uri) ? { returnValue: true, appId: front } : { returnValue: true };
   };
   let ensured = 0;
   const boxApps = {},
@@ -43,6 +44,7 @@ run(async () => {
   const f = mod.create({
     config: conf,
     luna,
+    comeBack: [100, 300, 500],
     inputhook: hook,
     /* the shape the service gives: the Input key module, and the add-ons loader (the Android box is a bundled add-on, not a feature) */
     feature: n => {
@@ -53,7 +55,7 @@ run(async () => {
   });
   f.start();
   let r = await call(f, '/api/remap');
-  ok(r.code === 200 && JSON.stringify(r.j.keys) === '{}' && r.j.types.length === 5, 'nothing is remapped at first');
+  ok(r.code === 200 && JSON.stringify(r.j.keys) === '{}' && r.j.types.length === 6, 'nothing is remapped at first');
   ok(r.j.enabled === false, 'the feature is off until it is switched on');
 
   // ---- off: nothing runs, nothing is bound ----
@@ -151,7 +153,7 @@ run(async () => {
   ok(r.returnValue === false && /no such app/.test(r.error), 'an app that cannot start is reported');
   r = (await call(f, '/api/remap')).j;
   ok(
-    r.types.length === 5 && r.max === 12 && r.hook === false,
+    r.types.length === 6 && r.max === 12 && r.hook === false,
     'the manager gets the actions, the 12 limit and whether the hook is attached'
   );
 
@@ -205,6 +207,23 @@ run(async () => {
   r = await call(f, '/api/remap/learn-state');
   ok(r.j.state === 'got' && r.j.code === '403' && r.j.existing === null, 'the next button that is not an arrow, OK or Back is learned');
   ok(!conf.get().keys['403'] && conf.get().keys.input === '', 'a learned remap button is not saved as the Input, Home, voice or Guide key');
+  // the button's own action covers the manager: the service brings it back, and the code is kept for it
+  await sleep(900);
+  const back = () =>
+    launched.filter(l => l.indexOf('launch {"id":"com.cleanyourtv.manager","params":{"open":"remaplearned"}}') === 0).length;
+  ok(back() === 3, 'the manager is opened again once a button is learned, and again while something else is in front: ' + back());
+  r = await call(f, '/api/remap/learn-state');
+  ok(r.j.resume === true && r.j.code === '403', 'the learned button waits for the manager to resume');
+  // when the manager is already in front it is not opened again (it would be reset under the person's hands)
+  front = 'com.cleanyourtv.manager';
+  launched.length = 0;
+  await call(f, '/api/remap/learn', 'POST', {});
+  await sleep(1300);
+  fs.appendFileSync(process.env.CYTV_HOOK_LOG, 'keyid=7, state=1 uinput_code=404\n');
+  await call(f, '/api/remap/learn-state');
+  await sleep(900);
+  ok(back() === 1, 'the later looks leave the manager alone when it is in front: ' + back());
+  front = '';
 
   // ---- the name of a button ----
   const kn = req('keynames');
@@ -245,6 +264,11 @@ run(async () => {
   );
   r = await call(f, '/api/remap', 'POST', { code: '555', type: 'picker' });
   ok(r.j.keys['555'].type === 'picker' && r.j.keys['555'].name === 'Disney+', 'changing what a button does keeps its name');
+  r = await call(f, '/api/remap', 'POST', { code: '557', type: 'none' });
+  ok(r.code === 200 && r.j.keys['557'].type === 'none', 'a button can be set to do nothing');
+  r = await call(f, '/api/remap/fire', 'POST', { code: '557' });
+  ok(r.code === 200 && r.j.returnValue === true, 'a button that does nothing is taken without an error');
+  await call(f, '/api/remap', 'POST', { code: '557', remove: true });
   r = await call(f, '/api/remap', 'POST', { code: '556', type: 'home', key: 'KEY_X; reboot' });
   ok(
     r.code === 200 && r.j.keys['556'].key === undefined && r.j.keys['556'].name === undefined,
