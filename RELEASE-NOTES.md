@@ -18,3 +18,14 @@ The Home key on a page was tried on a 65UR91006LB (webOS 25) with the default co
 ## Thanks
 
 @Edenik for the Home key, the voice fix and the hook detection; @larsoss for the page strip, the add-on repository output and the translations of the manager; @ramzeka for the card dimming setting; and everyone who reports what a dev build does on their TV.
+
+## The voice assistant can act on the TV
+
+- **Let the voice assistant act on the TV** (manager app, Features > AI agents (MCP)): the AI may open apps, switch inputs, show a card and use the tools of add-ons you
+  approved. Off by default. Turning the TV off asks first: say "yes" within 30 seconds.
+- **`/api/mcp`**: every tool of the service and of the add-ons, over the Model Context Protocol, for programs on the TV.
+- **Accept MCP clients from the network** (manager app, Features > AI agents (MCP)): off by default; switched on, AI agents on other computers (any MCP client, or a script) can use the same tools on port 8802. Each agent pairs once with a code shown on the TV and gets a token of its own; the TV lists the
+  agents, blocks or removes them, and removes unused ones after two weeks by default. Turning the TV off is never allowed from the network.
+- Add-ons can provide tools (`"provides": ["tools"]`). The **Agent tools (MCP)** add-on 1.1.0 gives the tools that apps and add-ons
+  sign in a `tools.json`, after you approve each on its phone page.
+- The voice setup page marks the models that can use tools.

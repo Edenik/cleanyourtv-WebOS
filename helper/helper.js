@@ -70,6 +70,8 @@ load('zram', () => require('./zram').create(ctx));
 load('preload', () => require('./preload').create(ctx));
 load('fstrim', () => require('./fstrim').create(ctx));
 load('addons', () => require('./addons').create(ctx));
+// every tool on the TV as an MCP server (/api/mcp): the service's own and the add-ons'; the voice assistant uses it too
+load('mcp', () => require('./toolhub').create(ctx));
 
 require('./server')
   .create({ features: () => loaded })

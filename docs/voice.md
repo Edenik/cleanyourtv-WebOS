@@ -68,6 +68,12 @@ curl -X POST localhost:8765/api/voice/ask -d '{"text":"..."}'
 
 It answers `{"text","answer","error"}`; add `"card":false` to skip the screen.
 
+### Letting the AI act on the TV
+
+**AI acts on the TV** (manager app, **Voice**; or `{"llm":{"agent":true}}`) lets the model use tools: open apps, switch inputs, show
+a card, turn the TV off after you say yes, and the tools of add-ons you approved. It is off by default. How it works, the yes, and
+the MCP endpoint other programs can use: [Tools for the assistant](agent.md).
+
 ## The speech model
 
 [Moonshine](https://github.com/moonshine-ai/moonshine) (Moonshine AI, MIT licence) runs on the TV; there is no cloud recogniser.

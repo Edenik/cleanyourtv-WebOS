@@ -430,8 +430,19 @@ async function respond(text, card) {
     return out;
   }
   if (useHa || useAi) await say({ kind: 'thinking', title: 'Thinking', question: text, text: '', seconds: 90 });
-  let haText = '';
-  if (useHa) {
+  let haText = '',
+    confirmed = false;
+  // the assistant asked "say yes to go ahead" (a tool that turns something off): these words answer it, not a new question
+  if (useAi && answers.pendingConfirm()) {
+    confirmed = true;
+    try {
+      out.answer = await answers.confirmPending(text);
+      out.via = 'ai';
+    } catch (e) {
+      out.error = e.message;
+    }
+  }
+  if (useHa && !confirmed) {
     try {
       const r = await askHa(text);
       haText = r.text;
@@ -443,9 +454,12 @@ async function respond(text, card) {
       out.error = 'Home Assistant: ' + e.message;
     }
   }
-  if (!out.answer && useAi) {
+  if (!out.answer && useAi && !confirmed) {
     try {
-      out.answer = await askLlm(text);
+      out.answer = await askLlm(text, {
+        // a tool runs: the card says which
+        onTool: name => say({ kind: 'thinking', title: 'Working on it', question: text, text: 'Using ' + name, seconds: 90 }),
+      });
       out.via = 'ai';
       if (out.error) out.error = '';
     } catch (e) {
@@ -473,10 +487,10 @@ async function respond(text, card) {
       Object.assign(
         {
           kind: 'answer',
-          title: out.via === 'ha' ? 'Home Assistant' : 'Answer',
+          title: out.via === 'ha' ? 'Home Assistant' : out.via === 'ai' && answers.pendingConfirm() ? 'Confirm' : 'Answer',
           question: text,
           text: out.answer || '',
-          seconds: readSeconds(out.answer),
+          seconds: out.via === 'ai' && answers.pendingConfirm() ? 30 : readSeconds(out.answer),
         },
         out.card && out.card.image ? { image: out.card.image } : {},
         out.card && out.card.seconds ? { seconds: out.card.seconds } : {}
@@ -579,6 +593,7 @@ function applySet(b) {
       l.model = b.llm.model.trim();
     }
     if (typeof b.llm.system === 'string') l.system = b.llm.system.slice(0, 1000);
+    if (typeof b.llm.agent === 'boolean') l.agent = b.llm.agent; // the model may use the tools of the service and approved add-ons
     if (l.enabled && !l.key) return 'set the OpenRouter key first';
     v.llm = l;
   }
@@ -628,7 +643,10 @@ function pairPage(msg, done, list, token, lang, only) {
     ha = haCfg(),
     title = only === 'ha' ? 'Home Assistant' : 'Voice setup';
   const opts = (list || [])
-    .map(m => `<option value="${esc(m.id)}">${esc(m.name)}${m.price != null ? ' · $' + m.price + '/M' : ''}</option>`)
+    .map(
+      m =>
+        `<option value="${esc(m.id)}">${esc(m.name)}${m.price != null ? ' · $' + m.price + '/M' : ''}${m.tools ? ' · ' + T('can act') : ''}</option>`
+    )
     .join('');
   return `<!doctype html><html lang=${lang}><meta name=viewport content="width=device-width,initial-scale=1"><title>${T(title)}</title>
 <style>body{font:18px system-ui,sans-serif;background:#111;color:#eee;max-width:560px;margin:32px auto;padding:0 18px}label{display:block;color:#aaa;font-size:15px;margin-top:14px}input,textarea,select,button{font:inherit;width:100%;box-sizing:border-box;padding:12px;margin:6px 0;border-radius:10px;border:1px solid #444;background:#1b1b1f;color:#eee}button{background:#f5f6f8;color:#111;font-weight:600;margin-top:20px}.m{padding:12px;border-radius:10px;background:#1f2a1f}small{color:#888}h2{margin:0 0 8px}.c{display:flex;gap:10px;align-items:center}.c input{width:auto;margin:0}</style>
@@ -645,6 +663,7 @@ function pairPage(msg, done, list, token, lang, only) {
 <label>${T('OpenRouter key')} ${l.key ? T('(one is saved; leave empty to keep it)') : ''}</label><input name=key type=password autocomplete=off placeholder="sk-or-...">
 <label>${T('Model')} <small>${T('choose from the list or type any OpenRouter model name')}</small></label><input name=model list=ml value="${esc(l.model)}" autocomplete=off><datalist id=ml>${opts}</datalist>
 <label class=c><input type=checkbox name=enabled value=1 ${l.enabled ? 'checked' : ''}> ${T('Answer with the AI')}</label>
+<label class=c><input type=checkbox name=agent value=1 ${l.agent ? 'checked' : ''}> ${T('Let the AI act on the TV (open apps, switch inputs)')}</label>
 <label>${T('Instructions for the AI')} <small>${T('(empty: short plain answers)')}</small></label><textarea name=system rows=3>${esc(l.system)}</textarea>
 <label>${T('Which answers first')}${
             haReady(ha)
@@ -692,7 +711,12 @@ function startPair(only) {
           if (f.get('hatoken')) set.ha.token = f.get('hatoken');
         } else {
           set = {
-            llm: { model: f.get('model') || '', system: f.get('system') || '', enabled: f.get('enabled') === '1' },
+            llm: {
+              model: f.get('model') || '',
+              system: f.get('system') || '',
+              enabled: f.get('enabled') === '1',
+              agent: f.get('agent') === '1',
+            },
             url: f.get('url') || '',
             ha: { route: f.get('haroute') || 'ha-first' },
           };
@@ -747,7 +771,7 @@ const status = () => {
     enabled: !!c.enabled,
     url: c.url,
     hasToken: !!c.token,
-    llm: (l => ({ enabled: !!l.enabled, hasKey: !!l.key, model: l.model }))(llmCfg()),
+    llm: (l => ({ enabled: !!l.enabled, hasKey: !!l.key, model: l.model, agent: !!l.agent }))(llmCfg()),
     ha: (h => ({ configured: haReady(h), url: h.url, hasToken: !!h.token, selfSigned: h.selfSigned, route: h.route, agent: h.agent }))(
       haCfg()
     ),
@@ -764,7 +788,13 @@ const status = () => {
 
 function create(c) {
   ctx = c;
-  answers.init(cfg);
+  // the tools the assistant may use (llm.agent): the ones the service's MCP endpoint serves (toolhub.js, /api/mcp)
+  answers.init(cfg, {
+    tools: () => {
+      const hub = ctx.feature && ctx.feature('mcp');
+      return hub && hub.providers ? hub.providers() : [];
+    },
+  });
   // the voice key of LG's own remote handling follows our setting (syncLg); checked now and then
   const start = () => {
     kernelArch().catch(() => {}); // for the status: the manager says at once that this TV cannot run voice
