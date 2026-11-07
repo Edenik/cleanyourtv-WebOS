@@ -11,14 +11,6 @@
 - **Voice on a 65UR91 (webOS 25): "I did not hear anything".** LG's voice service puts the remote's audio in a different place on this model, and says where in its reply. The service now reads that reply, and asks again until the mic button is held, and says "Hold the remote's mic button while you speak" instead of giving up silently. By @Edenik (#184).
 - **Input hook that attaches but gets no buttons** (issue 185, 55UN6950ZUA, webOS 5). Learning a button now says so ("no button reaches the hook on this TV"), the manager no longer shows the Input key as working there, and a hook like that does not keep the hidden picker. Detection only: the buttons of that model are not remapped yet. By @Edenik (#186).
 
-## What to know
-
-The Home key on a page was tried on a 65UR91006LB (webOS 25) with the default code, the voice fix on the same model, the card dimming setting on a 55NANO866NA (webOS 5.6) and the page strip click on a 65UP77006LB (webOS 6.5). The detection of a hook that gets no buttons (issue 185) has **not** been tried on a real TV yet: its author is waiting for the reporter of the issue to confirm it. The Home key binds LG's input service while a page shows, so it needs the Input key hook, which is on by default. Please say what you see in an issue.
-
-## Thanks
-
-@Edenik for the Home key, the voice fix and the hook detection; @larsoss for the page strip, the add-on repository output and the translations of the manager; @ramzeka for the card dimming setting; and everyone who reports what a dev build does on their TV.
-
 ## The voice assistant can act on the TV
 
 - **Let the voice assistant act on the TV** (manager app, Features > AI agents (MCP)): the AI may open apps, switch inputs, show a card and use the tools of add-ons you
@@ -29,3 +21,11 @@ The Home key on a page was tried on a 65UR91006LB (webOS 25) with the default co
 - Add-ons can provide tools (`"provides": ["tools"]`). The **Agent tools (MCP)** add-on 1.1.0 gives the tools that apps and add-ons
   sign in a `tools.json`, after you approve each on its phone page.
 - The voice setup page marks the models that can use tools.
+
+## What to know
+
+The Home key on a page was tried on a 65UR91006LB (webOS 25) with the default code, the voice fix on the same model, the card dimming setting on a 55NANO866NA (webOS 5.6) and the page strip click on a 65UP77006LB (webOS 6.5). The detection of a hook that gets no buttons (issue 185) has **not** been tried on a real TV yet: its author is waiting for the reporter of the issue to confirm it. The Home key binds LG's input service while a page shows, so it needs the Input key hook, which is on by default. Please say what you see in an issue.
+
+## Thanks
+
+@Edenik for the Home key, the voice fix and the hook detection; @larsoss for the page strip, the add-on repository output and the translations of the manager; @ramzeka for the card dimming setting; and everyone who reports what a dev build does on their TV.
