@@ -769,6 +769,32 @@ function build() {
     rows.push({ label: 'Back', fn: pop });
     return;
   }
+  if (view === 'cardsidledim') {
+    var dimEnabled = st.options.cardsIdleDim !== false;
+    var dimMinutes = st.options.cardsIdleMinutes || 3;
+    rows.push({
+      label: 'Dim inactive cards',
+      sub: onoff(dimEnabled),
+      fn: function () {
+        opt({ cardsIdleDim: !dimEnabled });
+      },
+    });
+    if (dimEnabled) {
+      [tr('3 minutes'), tr('5 minutes'), tr('10 minutes')].forEach(function (label, index) {
+        var minutes = [3, 5, 10][index];
+        rows.push({
+          label: label,
+          sub: minutes === dimMinutes ? 'selected' : '',
+          fn: function () {
+            opt({ cardsIdleMinutes: minutes });
+          },
+        });
+      });
+    }
+    rows.push({ sep: true });
+    rows.push({ label: 'Back', fn: pop });
+    return;
+  }
   if (view === 'volumebar') {
     var curV = (st.options && st.options.volumeTheme) || 'system';
     rows.push({
@@ -797,10 +823,11 @@ function build() {
   }
   if (view === 'inputkey') {
     var hk = st.inputhook || {},
-      na = hk.hook && !hk.hook.attached;
+      na = hk.hook && !hk.hook.attached,
+      blind = hk.hook && hk.hook.blind;
     rows.push({
       label: 'Input key opens our Inputs list',
-      sub: na ? 'not available on this firmware' : onoff(st.options.inputKey),
+      sub: na ? 'not available on this firmware' : blind ? 'no button reaches the hook on this TV' : onoff(st.options.inputKey),
       fn: function () {
         opt({ inputKey: !st.options.inputKey });
       },
@@ -850,7 +877,7 @@ function build() {
     });
     rows.push({
       label: 'Learn the Home key',
-      sub: 'optional · ' + (st.keys && st.keys.home ? 'now: ' + st.keys.home : 'not learned'),
+      sub: 'for the pages of the book \u00B7 ' + (st.keys && st.keys.home ? 'now: ' + st.keys.home : 'now: 773 (the usual code)'),
       fn: function () {
         openKeys('home');
       },
@@ -1372,7 +1399,10 @@ function build() {
     });
     rows.push({
       label: 'Input key',
-      sub: st.inputhook && st.inputhook.hook && !st.inputhook.hook.attached ? 'not available' : onoff(st.options.inputKey),
+      sub:
+        st.inputhook && st.inputhook.hook && (!st.inputhook.hook.attached || st.inputhook.hook.blind)
+          ? 'not available'
+          : onoff(st.options.inputKey),
       fn: function () {
         push('inputkey');
       },
@@ -1410,6 +1440,13 @@ function build() {
         },
       });
     rows.push({ label: 'Cards', sub: 'small widgets on Home', fn: openCards });
+    rows.push({
+      label: 'Dim inactive cards',
+      sub: onoff(st.options.cardsIdleDim !== false),
+      fn: function () {
+        push('cardsidledim');
+      },
+    });
     rows.push({
       label: 'Android box',
       sub: ab && ab.configured ? ab.settings.host : ab ? 'off' : '',

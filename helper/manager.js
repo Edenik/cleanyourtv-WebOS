@@ -54,6 +54,11 @@ function create(ctx) {
     return Object.assign(k, { inputIsDefault: !k.input, input: k.input || '241' });
   };
   const ensureHook = code => inputhook.ensure(inputkey().on(), code || keys().input);
+  // the Home key is bound by book.js while a page of the launcher's book shows: a learned or forgotten code takes effect at once
+  const syncBook = () => {
+    const b = ctx.feature('book');
+    if (b && b.sync) b.sync();
+  };
 
   function status() {
     const opts = config.options(),
@@ -90,6 +95,8 @@ function create(ctx) {
     const next = Object.assign({}, cur);
     for (const k of ['debloat', 'inputKey', 'liveTv', 'tuner']) if (typeof o[k] === 'boolean') next[k] = o[k];
     if (require('./audio').THEMES.indexOf(o.volumeTheme) >= 0) next.volumeTheme = o.volumeTheme;
+    if (typeof o.cardsIdleDim === 'boolean') next.cardsIdleDim = o.cardsIdleDim;
+    if ([3, 5, 10].indexOf(o.cardsIdleMinutes) >= 0) next.cardsIdleMinutes = o.cardsIdleMinutes;
     if (Array.isArray(o.debloatOff)) next.debloatOff = debloat.cleanOff(o.debloatOff);
     if (Array.isArray(o.closePreloaded)) next.closePreloaded = require('./preload').clean(o.closePreloaded);
     config.update('manager', c => {
@@ -139,6 +146,7 @@ function create(ctx) {
       if (inputhook.markSaved) inputhook.markSaved();
       if (l.name === 'input') ensureHook(l.code);
       else if (l.name === 'voice' || l.name === 'guide') ensureHook();
+      else if (l.name === 'home') syncBook();
     }
     return l;
   }
@@ -150,6 +158,7 @@ function create(ctx) {
       if (name === 'input') c.keys.learned = false;
     });
     if (name !== 'home') ensureHook();
+    else syncBook();
   }
 
   async function handle(req, res, u, body) {

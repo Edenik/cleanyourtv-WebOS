@@ -258,7 +258,7 @@ only its own files (and pictures and media from anywhere) and talk only to the s
 
 In the launcher, **Home is the first page and the add-ons that have `tile.placement` `page` (or `topbar`, which also adds a button
 to the top bar) are the pages after it.** Turning a page moves Home and the page sideways, like a book (a transform only; nothing is
-drawn on top of Home). A strip on Home shows what each page is called and which button turns to it. Its look and place are the theme's (`strip.*`, see
+drawn on top of Home). A strip on Home shows what each page is called and which button turns to it; with the pointer (the Magic Remote or a mouse) a click on a page in the strip turns to it as well. Its look and place are the theme's (`strip.*`, see
 [themes](../themes.md)): rounded `pills`, book `tabs` or small `dots`, with the names on all pages, only on the current one or none, and
 the first four pages in the colour of their button or every page with its number. Classic keeps it at the bottom centre; Bloom lowers
 it a little to sit under its glass dock.
@@ -270,7 +270,8 @@ it a little to sit under its glass dock.
 | number 3, or yellow | the second |
 | number 4, or blue | the third |
 | numbers 5 to 9 | the fourth to the eighth page (no colour) |
-| Back (Home key) | back to Home |
+| Back | back to Home |
+| Home | back to Home (see below; the key must be learned once) |
 
 A page is loaded when you turn to it and unloaded when you turn away (its video and timers stop). A page that needs some of those
 keys for itself lists them in `claims`: `digits` (the number buttons), `colors` (the colour buttons) and `back` (the page handles
@@ -280,6 +281,17 @@ Other pages include `/addon/sdk.js`: Back goes to Home, the number and colour bu
 `/api/addons/<id>/<path>`. A page that shows a QR code (the phone remote's pairing screen) includes `/addon/qrcode.js` as well: it is the
 one `third-party/qrcode-generator` file, which the package puts beside the helper files and the loader serves. Write the page in ES5
 (Chromium 68, webOS 5). The launcher sends the page its language, clock format and theme colours as query parameters and a message.
+
+**The Home key.** When another app is in front, pressing Home relaunches the launcher, which turns back to its first page. A page of the
+book is an iframe of the Home app, so webOS sees Home in front and sends no relaunch there: the key would do nothing. The service
+therefore binds the remote's Home key in LG's input service only while a page shows (`helper/book.js`, `helper/inputhook.js`), and a
+press asks the app manager for Home (`scripts/bookhome.sh`), which is that same relaunch. The code is the one learned in the manager
+(**CleanYourTV as Home** > **Learn the Home key**), else 773, what LG's input service reports for the Home button of the usual remotes.
+No other button sends 773, so a remote whose Home sends another code loses nothing; learn its code and Home works on a page too (until
+then Back is the way back, and the number and colour buttons on a page that does not keep them). A code that is already the Input, voice,
+Guide or a remapped button is never taken. The launcher reports the page it shows to `POST /api/book/page` on each turn, every 30 s while
+a page shows and when it is shown again, so the bind exists only while a page is open. Leaving for another app with a page open keeps the
+bind (some TVs report the launcher hidden while it is on screen); Home there opens Home, as it does anyway.
 
 The service accepts a page's requests (their origin is the service itself) only from the loopback address, only for `/addon/...`
 and for `/api/addons/<id>/...` with that add-on's own page as the Referer. Install and remove are not open to pages.
@@ -296,9 +308,9 @@ left out stays installed and running but has no button.
 
 | Request | Reply |
 |---|---|
-| `GET /api/addons` | `{addons: [{id, name, version, kind, description, about, preview, permissions, enabled, status, error, bundled, tile, page}], paused}`; `status` is `running`, `off`, `paused` or `failed` |
+| `GET /api/addons` | `{addons: [{id, name, version, kind, description, about, preview, permissions, enabled, status, error, bundled, repo, tile, page}], paused}`; `status` is `running`, `off`, `paused` or `failed`; `repo` (not for bundled ones) is the repository it was installed from |
 | `GET /api/addons/preview/<id>[?repo=<name>]` | The add-on's picture (`image/jpeg`, `png` or `webp`): from its folder when it is on the TV, else from its repository; 404 without one |
-| `GET /api/addons/catalog` | `{addons: [{id, name, version, description, about, preview, kind, permissions, repo, official, installed, bundled, update}], error, errors: [{repo, error}]}`: what every repository offers; `update` only when the add-on was installed from that repository |
+| `GET /api/addons/catalog` | `{addons: [{id, name, version, description, about, preview, kind, permissions, repo, official, installed, bundled, update}], error, errors: [{repo, error}]}`: what every repository offers; `installed` and `update` only on the row of the repository the add-on was installed from |
 | `GET /api/addons/repos` | `{repos: [{name, url, official}]}` |
 | `POST /api/addons/repos {add, name?, confirm}` or `{remove}` | Adds a repository (`user/repo`, `user/repo@branch/folder` or an https folder) or removes one; `official` cannot be removed (`400`). Adding needs `confirm: true`, else `400 {error, confirm: true}`. `{repos, added}` or `{repos, removed}` |
 | `POST /api/addons/repos/phone {}` or `{stop: true}` | Opens the phone page for adding a repository (port 8800): `{url, code, qr, seconds}` |
