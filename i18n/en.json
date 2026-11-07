@@ -1055,5 +1055,8 @@
  "%s of daylight": "%s of daylight",
  "Photo: %s": "Photo: %s",
  "Voice is not available on this TV": "Voice is not available on this TV",
- "its kernel is 32-bit": "its kernel is 32-bit"
+ "its kernel is 32-bit": "its kernel is 32-bit",
+ "The hook is in LG’s input service, but no button reaches it on this TV, so keys cannot be learned. The Input key stays with LG’s picker.\nUse Share log to report this.": "The hook is in LG’s input service, but no button reaches it on this TV, so keys cannot be learned. The Input key stays with LG’s picker.\nUse Share log to report this.",
+ "No button reaches CleanYourTV on this TV: LG’s input service passes them another way, so buttons cannot be learned.\nUse Share log to report this.": "No button reaches CleanYourTV on this TV: LG’s input service passes them another way, so buttons cannot be learned.\nUse Share log to report this.",
+ "no button reaches the hook on this TV": "no button reaches the hook on this TV"
 }
