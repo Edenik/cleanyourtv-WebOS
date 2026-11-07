@@ -4,6 +4,7 @@
 - **A click on the page strip turns to that page.** The strip on Home ("Home · Live TV · Phone remote") now takes a click from the Magic Remote's pointer, as its number or colour button does. By @larsoss (#197).
 - **Card dimming is a setting.** Home cards dim after three minutes without a key to protect an OLED. **Features > Dim inactive cards** now turns that off or sets 3, 5 or 10 minutes; the pixel shift stays. By @ramzeka (#176).
 - **Add-on repositories show where an add-on came from.** `cytv-addons installed` says which repository each add-on was installed from, the columns of `repos` and `list` no longer run into each other when a name is long, and the catalog marks an add-on as installed only on the row of its own repository. By @larsoss (#196).
+- **Stocks and crypto on Home** (Add-ons > Get more > Stocks and crypto). Two cards: your stocks (US shares and ETFs, from Twelve Data with your own free key, set from your phone) and your coins (from CoinGecko, no key), each as a ticker, cells or a panel. OK opens a drawer with the list; OK on a symbol shows its chart (1D to 1Y), the key numbers and its day and 52-week ranges, and Left, Right or CH+/CH- go to the next symbol. The free Twelve Data plan has 800 credits a day, so a longer list is updated less often (every 5 minutes for 5 symbols, every 20 for 20, while the US market is open). By @Edenik (#187).
 - **The Add-ons screen and the phone remote can be translated.** The manager's rows ("Switch off", "Page of the book", "Install · 1.0.0" and others) never reached the translation files, so no language could translate them; they do now, and so does the phone remote's first step. Dutch is complete again. By @larsoss (#198).
 
 ## Fixes
@@ -13,8 +14,8 @@
 
 ## What to know
 
-The Home key on a page was tried on a 65UR91006LB (webOS 25) with the default code, the voice fix on the same model, the card dimming setting on a 55NANO866NA (webOS 5.6) and the page strip click on a 65UP77006LB (webOS 6.5). The detection of a hook that gets no buttons (issue 185) has **not** been tried on a real TV yet: its author is waiting for the reporter of the issue to confirm it. The Home key binds LG's input service while a page shows, so it needs the Input key hook, which is on by default. Please say what you see in an issue.
+The Home key on a page was tried on a 65UR91006LB (webOS 25) with the default code, the voice fix on the same model, the card dimming setting on a 55NANO866NA (webOS 5.6) and the page strip click on a 65UP77006LB (webOS 6.5). The Stocks and crypto cards and their drawers were tried on a 65UR91006LB (webOS 25) with a free Twelve Data key, but not yet on webOS 5 or 6. The detection of a hook that gets no buttons (issue 185) has **not** been tried on a real TV yet: its author is waiting for the reporter of the issue to confirm it. The Home key binds LG's input service while a page shows, so it needs the Input key hook, which is on by default. Please say what you see in an issue.
 
 ## Thanks
 
-@Edenik for the Home key, the voice fix and the hook detection; @larsoss for the page strip, the add-on repository output and the translations of the manager; @ramzeka for the card dimming setting; and everyone who reports what a dev build does on their TV.
+@Edenik for the Home key, the voice fix, the hook detection and the Stocks and crypto cards; @larsoss for the page strip, the add-on repository output and the translations of the manager; @ramzeka for the card dimming setting; and everyone who reports what a dev build does on their TV.
