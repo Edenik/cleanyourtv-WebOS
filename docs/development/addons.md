@@ -258,7 +258,7 @@ only its own files (and pictures and media from anywhere) and talk only to the s
 
 In the launcher, **Home is the first page and the add-ons that have `tile.placement` `page` (or `topbar`, which also adds a button
 to the top bar) are the pages after it.** Turning a page moves Home and the page sideways, like a book (a transform only; nothing is
-drawn on top of Home). A strip on Home shows what each page is called and which button turns to it. Its look and place are the theme's (`strip.*`, see
+drawn on top of Home). A strip on Home shows what each page is called and which button turns to it; with the pointer (the Magic Remote or a mouse) a click on a page in the strip turns to it as well. Its look and place are the theme's (`strip.*`, see
 [themes](../themes.md)): rounded `pills`, book `tabs` or small `dots`, with the names on all pages, only on the current one or none, and
 the first four pages in the colour of their button or every page with its number. Classic keeps it at the bottom centre; Bloom lowers
 it a little to sit under its glass dock.
@@ -308,9 +308,9 @@ left out stays installed and running but has no button.
 
 | Request | Reply |
 |---|---|
-| `GET /api/addons` | `{addons: [{id, name, version, kind, description, about, preview, permissions, enabled, status, error, bundled, tile, page}], paused}`; `status` is `running`, `off`, `paused` or `failed` |
+| `GET /api/addons` | `{addons: [{id, name, version, kind, description, about, preview, permissions, enabled, status, error, bundled, repo, tile, page}], paused}`; `status` is `running`, `off`, `paused` or `failed`; `repo` (not for bundled ones) is the repository it was installed from |
 | `GET /api/addons/preview/<id>[?repo=<name>]` | The add-on's picture (`image/jpeg`, `png` or `webp`): from its folder when it is on the TV, else from its repository; 404 without one |
-| `GET /api/addons/catalog` | `{addons: [{id, name, version, description, about, preview, kind, permissions, repo, official, installed, bundled, update}], error, errors: [{repo, error}]}`: what every repository offers; `update` only when the add-on was installed from that repository |
+| `GET /api/addons/catalog` | `{addons: [{id, name, version, description, about, preview, kind, permissions, repo, official, installed, bundled, update}], error, errors: [{repo, error}]}`: what every repository offers; `installed` and `update` only on the row of the repository the add-on was installed from |
 | `GET /api/addons/repos` | `{repos: [{name, url, official}]}` |
 | `POST /api/addons/repos {add, name?, confirm}` or `{remove}` | Adds a repository (`user/repo`, `user/repo@branch/folder` or an https folder) or removes one; `official` cannot be removed (`400`). Adding needs `confirm: true`, else `400 {error, confirm: true}`. `{repos, added}` or `{repos, removed}` |
 | `POST /api/addons/repos/phone {}` or `{stop: true}` | Opens the phone page for adding a repository (port 8800): `{url, code, qr, seconds}` |
