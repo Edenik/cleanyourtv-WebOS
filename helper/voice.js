@@ -663,7 +663,7 @@ function pairPage(msg, done, list, token, lang, only) {
 <label>${T('OpenRouter key')} ${l.key ? T('(one is saved; leave empty to keep it)') : ''}</label><input name=key type=password autocomplete=off placeholder="sk-or-...">
 <label>${T('Model')} <small>${T('choose from the list or type any OpenRouter model name')}</small></label><input name=model list=ml value="${esc(l.model)}" autocomplete=off><datalist id=ml>${opts}</datalist>
 <label class=c><input type=checkbox name=enabled value=1 ${l.enabled ? 'checked' : ''}> ${T('Answer with the AI')}</label>
-<label class=c><input type=checkbox name=agent value=1 ${l.agent ? 'checked' : ''}> ${T('Let the AI act on the TV (open apps, switch inputs)')}</label>
+<label class=c><input type=checkbox name=agent value=1 ${l.agent ? 'checked' : ''}> ${T('Let the AI act on the TV (open apps, switch inputs, approved add-on tools)')} <small>${T('needs a model marked can act')}</small></label>
 <label>${T('Instructions for the AI')} <small>${T('(empty: short plain answers)')}</small></label><textarea name=system rows=3>${esc(l.system)}</textarea>
 <label>${T('Which answers first')}${
             haReady(ha)
